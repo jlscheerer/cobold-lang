@@ -1,0 +1,72 @@
+import "std/io";
+import "example.cb";
+
+fn Foo() {
+    Print("Hello World!");
+
+    let example: string** = "djeff\n";
+    let pointer: i32* = (i32*) malloc(4);
+
+    var example1: i32 = -11;
+    var example2: i32 = --;
+
+    example2 *= 12;
+
+    var example3: i32;
+
+    let example4: i32 = 1;
+    let example5: i32 = --;
+
+    let example6 = 32;
+
+    Print(2, "sss");
+
+    for i: i32 in x {
+
+    }
+
+    var c: [string] = [];
+
+
+
+    if x {
+        "ab\"";
+    } else if y {
+
+    } else {
+
+    }
+
+    var a = .5;
+
+    var b = 1.0; // 1. is not supported
+
+    for i in [..2] {
+
+    }
+
+    while x {
+
+    }
+
+    while [..] {
+
+    }
+
+    return 12 + >>12;
+}
+
+fn Print(message: string) #extern("__std_io_print");
+
+fn Main(args: [string]) {
+    Print("Hello World!");
+}
+
+fn DoSomething(a: i32,b: i32) {
+    return a + b;
+}
+
+fn DoSomethingElse(_a: i32*, b: i32) -> i32* {
+    >>a += b; // dereference a and add b
+    return a;
+}
