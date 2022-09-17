@@ -24,10 +24,8 @@ fn Foo() {
     for i: i32 in x {
 
     }
-
+    
     var c: [string] = [];
-
-
 
     if x {
         "ab\"";
@@ -56,7 +54,7 @@ fn Foo() {
     return 12 + >>12;
 }
 
-fn Print(message: string) #extern("__std_io_print");
+fn Print(message: string) -> [string] #extern("__std_io_print");
 
 fn Main(args: [string]) {
     Print("Hello World!");

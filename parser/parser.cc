@@ -36,16 +36,16 @@ absl::StatusOr<SourceFile> Parser::Parse(const std::string &filename) {
 
   source_file.close();
   tokens.fill();
-  return InternalParse(file);
+  return InternalParse(filename, file);
 }
 
-absl::StatusOr<SourceFile> Parser::InternalParse(CoboldParser::FileContext *ctx) {
+absl::StatusOr<SourceFile> Parser::InternalParse(const std::string &filename, CoboldParser::FileContext *ctx) {
   Parser parser;
-  return parser.ParseFile(ctx);
+  return parser.ParseFile(filename, ctx);
 }
 
-absl::StatusOr<SourceFile> Parser::ParseFile(CoboldParser::FileContext *ctx) {
-  SourceFile file;
+absl::StatusOr<SourceFile> Parser::ParseFile(const std::string &filename, CoboldParser::FileContext *ctx) {
+  SourceFile file(filename);
   file.imports_.reserve(ctx->importDeclaration().size());
   for (const auto& import: ctx->importDeclaration()) {
     absl::StatusOr<std::string> parsed_import =  ParseImport(import);
@@ -73,27 +73,52 @@ absl::StatusOr<std::string> Parser::ParseImport(CoboldParser::ImportDeclarationC
 
 absl::StatusOr<std::unique_ptr<Function>> Parser::ParseFunction(CoboldParser::FunctionDeclarationContext *ctx) {
   std::string name = ctx->Identifier()->getText();
-  Type *return_type;
+  const Type *return_type;
   {
-    absl::StatusOr<Type *> status_or_type = ParseType(ctx->typeSpecifier(), /*allow_void*/true);
+    absl::StatusOr<const Type *> status_or_type = ParseType(ctx->typeSpecifier(), /*allow_void*/true);
     if (!status_or_type.ok()) return status_or_type.status();
     return_type = *status_or_type;
   }
-  std::vector<Type *> argument_types;
+  std::vector<FunctionArgument> arguments;
   for (auto *args = ctx->argumentList(); args != nullptr; args = args->argumentList()) {
-    absl::StatusOr<Type *> status_or_type = ParseType(ctx->typeSpecifier(), /*allow_void*/false);
+    absl::StatusOr<const Type *> status_or_type = ParseType(args->typeSpecifier(), /*allow_void*/false);
     if (!status_or_type.ok()) return status_or_type.status();
-    argument_types.push_back(*status_or_type);
+    arguments.push_back({args->Identifier()->toString(), *status_or_type});
   }
   if (ctx->externSpecifier()) {
-    std::string specifier = ctx->externSpecifier()->StringConstant()->getText();
-    std::cout << specifier << std::endl;
-    return std::make_unique<ExternFunction>(std::move(name), std::move(argument_types), return_type);
+    absl::StatusOr<std::string> status_or_specifier = ParseExternSpecifier(ctx->externSpecifier());
+    if (!status_or_specifier.ok()) return status_or_specifier.status();
+    return std::make_unique<ExternFunction>(std::move(name), std::move(arguments), return_type, std::move(*status_or_specifier));
   }
-  return std::make_unique<Function>(std::move(name), std::move(argument_types), return_type);
+  CompoundStatement body;
+  return std::make_unique<DefinedFunction>(std::move(name), std::move(arguments), return_type, std::move(body));
 }
 
-absl::StatusOr<Type *> Parser::ParseType(CoboldParser::TypeSpecifierContext *ctx, bool allow_void) {
-  return nullptr;
+absl::StatusOr<const Type *> Parser::ParseType(CoboldParser::TypeSpecifierContext *ctx, bool allow_void) {
+  if (ctx == nullptr) {
+    if (allow_void) return NilType::Get();
+    return InvalidArgument("Type", ctx);
+  }
+  if (ctx->I32()) return IntegralType::OfSize(32);
+  if (ctx->I64()) return IntegralType::OfSize(64);
+  if (ctx->STRING()) return StringType::Get();
+  absl::StatusOr<const Type *> status_or_type = ParseType(ctx->typeSpecifier(), /*allow_void*/false);
+  if (!status_or_type.ok()) return status_or_type.value();
+  if (ctx->LBRACKET()) {
+    assert(ctx->RBRACKET());
+    return Type::ArrayOf(*status_or_type);
+  }
+  assert(ctx->POINTER());
+  return Type::PointerTo(*status_or_type);
+}
+
+absl::StatusOr<std::string> Parser::ParseExternSpecifier(CoboldParser::ExternSpecifierContext *ctx) {
+  if (ctx == nullptr || ctx->StringConstant() == nullptr) return InvalidArgument("ExternSpecifier", ctx);
+  std::string specifier = ctx->StringConstant()->getText();
+  // Empty Specifier ("") is not allowed!
+  if (specifier.size() < 3 || specifier[0] != '"' || specifier[specifier.size() - 1] != '"') {
+    return InvalidArgument("ExternSpecifier", ctx->StringConstant());
+  }
+  return specifier.substr(1, specifier.size() - 2);
 }
 }  // namespace Cobold

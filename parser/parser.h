@@ -17,12 +17,14 @@ public:
     static absl::StatusOr<SourceFile> Parse(const std::string &filename);
 
 private:
-    static absl::StatusOr<SourceFile> InternalParse(CoboldParser::FileContext *ctxt);
+    static absl::StatusOr<SourceFile> InternalParse(const std::string &filename, CoboldParser::FileContext *ctxt);
     
-    absl::StatusOr<SourceFile> ParseFile(CoboldParser::FileContext *ctx);
+    absl::StatusOr<SourceFile> ParseFile(const std::string &filename, CoboldParser::FileContext *ctx);
     absl::StatusOr<std::string> ParseImport(CoboldParser::ImportDeclarationContext *ctx);
     absl::StatusOr<std::unique_ptr<Function>> ParseFunction(CoboldParser::FunctionDeclarationContext *ctx);
-    absl::StatusOr<Type *> ParseType(CoboldParser::TypeSpecifierContext *ctx, bool allow_void = false);
+    absl::StatusOr<const Type *> ParseType(CoboldParser::TypeSpecifierContext *ctx, bool allow_void = false);
+
+    absl::StatusOr<std::string> ParseExternSpecifier(CoboldParser::ExternSpecifierContext *ctx);
 };
 }
 
