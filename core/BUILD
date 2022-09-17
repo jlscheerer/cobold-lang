@@ -36,5 +36,6 @@ cc_library(
     deps = [
         ":type",
         ":statement",
+        "//util:statement_printer",
     ],
 )
