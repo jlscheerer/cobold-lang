@@ -16,6 +16,7 @@ cc_library(
     hdrs = ["expression.h"],
     deps = [
         ":type",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 

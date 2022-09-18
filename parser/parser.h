@@ -62,6 +62,42 @@ private:
   // Expressions
   absl::StatusOr<std::unique_ptr<Expression>>
   ParseExpression(CoboldParser::ExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseConditionalExpression(CoboldParser::ConditionalExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseCallExpression(CoboldParser::CallExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseRangeExpression(CoboldParser::RangeExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseArrayExpression(CoboldParser::ArrayExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseLogicalOrExpression(CoboldParser::LogicalOrExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseLogicalAndExpression(CoboldParser::LogicalAndExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseInclusiveOrExpression(CoboldParser::InclusiveOrExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseExclusiveOrExpression(CoboldParser::ExclusiveOrExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseAndExpression(CoboldParser::AndExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseEqualityExpression(CoboldParser::EqualityExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseRelationalExpression(CoboldParser::RelationalExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseShiftExpression(CoboldParser::ShiftExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseAddtiveExpression(CoboldParser::AdditiveExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>> ParseMultiplicativeExpression(
+      CoboldParser::MultiplicativeExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseCastExpression(CoboldParser::CastExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseUnaryExpression(CoboldParser::UnaryExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParsePrimaryExpression(CoboldParser::PrimaryExpressionContext *ctx);
 };
 } // namespace Cobold
 

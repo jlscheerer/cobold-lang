@@ -49,23 +49,23 @@ primaryExpression:
 	| FloatingConstant
 	| Identifier;
 
-postfixExpression:
-	primaryExpression (
+postfixExpression: primaryExpression postfixOperations?;
+postfixOperations: (
 		'[' expression ']'
 		| '(' argumentExpressionList? ')'
 		| ('.' | '->') Identifier
 		| ('++' | '--')
-	)*;
+	) postfixOperations?;
 
 argumentExpressionList:
 	conditionalExpression (',' conditionalExpression)*;
 
 unaryExpression:
-	('++' | '--')* (
+	prefixOperator* (
 		postfixExpression
 		| unaryOperator castExpression
 	);
-
+prefixOperator: '++' | '--';
 unaryOperator: '&' | '>>' | '+' | '-' | '~' | '!';
 
 castExpression:
@@ -73,21 +73,26 @@ castExpression:
 	| unaryExpression;
 
 multiplicativeExpression:
-	castExpression (('*' | '/' | '%') castExpression)*;
+	castExpression (multiplicativeOperator castExpression)*;
+multiplicativeOperator: '*' | '/' | '%';
 
 additiveExpression:
 	multiplicativeExpression (
-		('+' | '-') multiplicativeExpression
+		additiveOperator multiplicativeExpression
 	)*;
+additiveOperator: '+' | '-';
 
 shiftExpression:
-	additiveExpression (('<<' | '>>') additiveExpression)*;
+	additiveExpression (shiftOperator additiveExpression)*;
+shiftOperator: '<<' | '>>';
 
 relationalExpression:
-	shiftExpression (('<' | '>' | '<=' | '>=') shiftExpression)*;
+	shiftExpression (relationalOperator shiftExpression)*;
+relationalOperator: '<' | '>' | '<=' | '>=';
 
 equalityExpression:
-	relationalExpression (('==' | '!=') relationalExpression)*;
+	relationalExpression (equalityOperator relationalExpression)*;
+equalityOperator: '==' | '!=';
 
 andExpression: equalityExpression ( '&' equalityExpression)*;
 
@@ -114,7 +119,10 @@ expression:
 	| arrayExpression;
 callExpression:
 	Identifier '(' (expression (',' expression)*)? ')';
-rangeExpression: LBRACKET expression? '..' expression? RBRACKET;
+rangeExpression:
+	LBRACKET leftExpression? '..' rightExpression? RBRACKET;
+leftExpression: expression;
+rightExpression: expression;
 arrayExpression:
 	LBRACKET (expression (',' expression)*)? RBRACKET;
 

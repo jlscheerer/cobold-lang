@@ -348,6 +348,265 @@ Parser::ParseDeclaration(CoboldParser::DeclarationContext *ctx) {
 
 absl::StatusOr<std::unique_ptr<Expression>>
 Parser::ParseExpression(CoboldParser::ExpressionContext *ctx) {
-  return nullptr;
+  if (ctx->conditionalExpression()) {
+    return ParseConditionalExpression(ctx->conditionalExpression());
+  }
+  if (ctx->callExpression()) {
+    return ParseCallExpression(ctx->callExpression());
+  }
+  if (ctx->rangeExpression()) {
+    return ParseRangeExpression(ctx->rangeExpression());
+  }
+  if (ctx->arrayExpression()) {
+    return ParseArrayExpression(ctx->arrayExpression());
+  }
+  assert(false);
+}
+
+absl::StatusOr<std::unique_ptr<Expression>> Parser::ParseConditionalExpression(
+    CoboldParser::ConditionalExpressionContext *ctx) {
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_cond =
+      ParseLogicalOrExpression(ctx->logicalOrExpression());
+  if (!ctx->expression())
+    return status_or_cond;
+  assert(ctx->conditionalExpression());
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_true =
+      ParseExpression(ctx->expression());
+  if (!status_or_true.ok())
+    return status_or_true.status();
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_false =
+      ParseConditionalExpression(ctx->conditionalExpression());
+  if (!status_or_false.ok())
+    return status_or_false.status();
+  return std::make_unique<TernaryExpression>(std::move(*status_or_cond),
+                                             std::move(*status_or_true),
+                                             std::move(*status_or_false));
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseCallExpression(CoboldParser::CallExpressionContext *ctx) {
+  std::string identifier = ctx->Identifier()->getText();
+  std::vector<std::unique_ptr<Expression>> args;
+  args.reserve(ctx->expression().size());
+  for (const auto &expr : ctx->expression()) {
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_arg =
+        ParseExpression(expr);
+    if (!status_or_arg.ok())
+      return status_or_arg.status();
+    args.push_back(std::move(*status_or_arg));
+  }
+  return std::make_unique<CallExpression>(std::move(identifier),
+                                          std::move(args));
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseRangeExpression(CoboldParser::RangeExpressionContext *ctx) {
+  std::unique_ptr<Expression> left;
+  if (ctx->leftExpression()) {
+    assert(ctx->leftExpression()->expression());
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+        ParseExpression(ctx->leftExpression()->expression());
+    if (!status_or_expr.ok())
+      return status_or_expr.status();
+    left = std::move(*status_or_expr);
+  }
+  std::unique_ptr<Expression> right;
+  if (ctx->rightExpression()) {
+    assert(ctx->rightExpression()->expression());
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+        ParseExpression(ctx->rightExpression()->expression());
+    if (!status_or_expr.ok())
+      return status_or_expr.status();
+    right = std::move(*status_or_expr);
+  }
+  return std::make_unique<RangeExpression>(std::move(left), std::move(right));
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseArrayExpression(CoboldParser::ArrayExpressionContext *ctx) {
+  std::vector<std::unique_ptr<Expression>> elements;
+  elements.reserve(ctx->expression().size());
+  for (const auto &expr : ctx->expression()) {
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_elem =
+        ParseExpression(expr);
+    if (!status_or_elem.ok())
+      return status_or_elem.status();
+    elements.push_back(std::move(*status_or_elem));
+  }
+  return std::make_unique<ArrayExpression>(std::move(elements));
+}
+
+#define EXPAND_EXPRESSION(FN_NAME)
+
+#define EXPAND_BINARY_EXPRESSION(FN_NAME, FN_CTX, UNDERLYING_EXPR_PARSER,      \
+                                 UNDERLYING_EXPR, SYMBOL)                      \
+  absl::StatusOr<std::unique_ptr<Expression>> Parser::FN_NAME(                 \
+      CoboldParser::FN_CTX *ctx) {                                             \
+    const int n = ctx->UNDERLYING_EXPR().size();                               \
+    assert(n >= 1);                                                            \
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_left =               \
+        UNDERLYING_EXPR_PARSER(ctx->UNDERLYING_EXPR(0));                       \
+    if (!status_or_left.ok())                                                  \
+      return status_or_left.status();                                          \
+    std::unique_ptr<Expression> expr = std::move(*status_or_left);             \
+    for (int i = 1; i < n; ++i) {                                              \
+      absl::StatusOr<std::unique_ptr<Expression>> status_or_right =            \
+          UNDERLYING_EXPR_PARSER(ctx->UNDERLYING_EXPR(i));                     \
+      if (!status_or_right.ok())                                               \
+        return status_or_right.status();                                       \
+      expr = std::make_unique<BinaryExpression>(                               \
+          std::move(expr), BinaryExpression::TypeFromString(SYMBOL),           \
+          std::move(*status_or_right));                                        \
+    }                                                                          \
+    return expr;                                                               \
+  }
+
+EXPAND_BINARY_EXPRESSION(ParseLogicalOrExpression, LogicalOrExpressionContext,
+                         ParseLogicalAndExpression, logicalAndExpression, "||")
+
+EXPAND_BINARY_EXPRESSION(ParseLogicalAndExpression, LogicalAndExpressionContext,
+                         ParseInclusiveOrExpression, inclusiveOrExpression,
+                         "&&")
+
+EXPAND_BINARY_EXPRESSION(ParseInclusiveOrExpression,
+                         InclusiveOrExpressionContext,
+                         ParseExclusiveOrExpression, exclusiveOrExpression, "|")
+
+EXPAND_BINARY_EXPRESSION(ParseExclusiveOrExpression,
+                         ExclusiveOrExpressionContext, ParseAndExpression,
+                         andExpression, "^")
+
+EXPAND_BINARY_EXPRESSION(ParseAndExpression, AndExpressionContext,
+                         ParseEqualityExpression, equalityExpression, "&")
+
+EXPAND_BINARY_EXPRESSION(ParseEqualityExpression, EqualityExpressionContext,
+                         ParseRelationalExpression, relationalExpression,
+                         (ctx->equalityOperator(i - 1)->getText()))
+
+EXPAND_BINARY_EXPRESSION(ParseRelationalExpression, RelationalExpressionContext,
+                         ParseShiftExpression, shiftExpression,
+                         (ctx->relationalOperator(i - 1)->getText()))
+
+EXPAND_BINARY_EXPRESSION(ParseShiftExpression, ShiftExpressionContext,
+                         ParseAddtiveExpression, additiveExpression,
+                         (ctx->shiftOperator(i - 1)->getText()))
+
+EXPAND_BINARY_EXPRESSION(ParseAddtiveExpression, AdditiveExpressionContext,
+                         ParseMultiplicativeExpression,
+                         multiplicativeExpression,
+                         (ctx->additiveOperator(i - 1)->getText()))
+
+EXPAND_BINARY_EXPRESSION(ParseMultiplicativeExpression,
+                         MultiplicativeExpressionContext, ParseCastExpression,
+                         castExpression,
+                         (ctx->multiplicativeOperator(i - 1)->getText()))
+
+#undef EXPAND_BINARY_EXPRESSION
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseCastExpression(CoboldParser::CastExpressionContext *ctx) {
+  if (ctx->unaryExpression())
+    return ParseUnaryExpression(ctx->unaryExpression());
+  assert(ctx->typeSpecifier() && ctx->castExpression());
+  absl::StatusOr<const Type *> status_or_type = ParseType(ctx->typeSpecifier());
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+      ParseCastExpression(ctx->castExpression());
+  if (!status_or_expr.ok())
+    return status_or_expr.status();
+  return std::make_unique<CastExpression>(std::move(*status_or_type),
+                                          std::move(*status_or_expr));
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseUnaryExpression(CoboldParser::UnaryExpressionContext *ctx) {
+  std::unique_ptr<Expression> expr;
+  if (ctx->postfixExpression()) {
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+        ParsePostfixExpression(ctx->postfixExpression());
+    if (!status_or_expr.ok())
+      return status_or_expr.status();
+    expr = std::move(*status_or_expr);
+  } else {
+    assert(ctx->unaryOperator() && ctx->castExpression());
+    absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+        ParseCastExpression(ctx->castExpression());
+    if (!status_or_expr.ok())
+      return status_or_expr.status();
+    expr = std::make_unique<UnaryExpression>(
+        UnaryExpression::TypeFromPrefixString(ctx->unaryOperator()->getText()),
+        std::move(*status_or_expr));
+  }
+  for (const auto &op : ctx->prefixOperator()) {
+    expr = std::make_unique<UnaryExpression>(
+        UnaryExpression::TypeFromPrefixString(op->getText()), std::move(expr));
+  }
+  return expr;
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx) {
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+      ParsePrimaryExpression(ctx->primaryExpression());
+  if (!status_or_expr.ok())
+    return status_or_expr.status();
+  std::unique_ptr<Expression> expr = std::move(*status_or_expr);
+  for (auto op = ctx->postfixOperations(); op != nullptr;
+       op = op->postfixOperations()) {
+    // TODO(jlscheerer) Clean up this code.
+    // For now we can determine the type of operation based on the first
+    // character of the `postfixOperations` object.
+    char op_type = op->getText()[0];
+    if (op_type == '[') {
+      // array access operation a[..]
+      assert(op->expression());
+      absl::StatusOr<std::unique_ptr<Expression>> status_or_index =
+          ParseExpression(op->expression());
+      if (!status_or_index.ok())
+        return status_or_index.status();
+      expr = std::make_unique<ArrayAccessExpression>(
+          std::move(expr), std::move(*status_or_index));
+    } else if (op_type == '(') {
+      // call operation a(...)
+      std::vector<std::unique_ptr<Expression>> args;
+      if (op->argumentExpressionList()) {
+        for (const auto &cond_expr :
+             op->argumentExpressionList()->conditionalExpression()) {
+          absl::StatusOr<std::unique_ptr<Expression>> status_or_arg =
+              ParseConditionalExpression(cond_expr);
+          if (!status_or_arg.ok())
+            return status_or_arg.status();
+          args.push_back(std::move(*status_or_arg));
+        }
+      }
+      expr =
+          std::make_unique<CallOpExpression>(std::move(expr), std::move(args));
+    } else if (op_type == '.' || (op_type == '-' && op->Identifier())) {
+      // member access a.identifier or a->identifier
+      assert(op->Identifier());
+      expr = std::make_unique<MemberAccessExpression>(
+          std::move(expr), op_type == '.', op->Identifier()->getText());
+    } else if (op_type == '+' || (op_type == '-' && !op->Identifier())) {
+      // post increment/decrement
+      UnaryExpressionType post_type = (op_type == '+')
+                                          ? UnaryExpressionType::POST_INCREMENT
+                                          : UnaryExpressionType::POST_DECREMENT;
+      expr = std::make_unique<UnaryExpression>(post_type, std::move(expr));
+    } else {
+      assert(false);
+    }
+  }
+  return expr;
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParsePrimaryExpression(CoboldParser::PrimaryExpressionContext *ctx) {
+  if (ctx->StringConstant()) {
+    return ConstantExpression::String(ctx->StringConstant()->getText());
+  } else if (ctx->IntegerConstant()) {
+    return ConstantExpression::Integer(ctx->IntegerConstant()->getText());
+  } else if (ctx->FloatingConstant()) {
+    return ConstantExpression::Floating(ctx->FloatingConstant()->getText());
+  }
+  return std::make_unique<IdentifierExpression>(ctx->Identifier()->getText());
 }
 } // namespace Cobold

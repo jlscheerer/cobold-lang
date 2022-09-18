@@ -43,6 +43,10 @@ fn Foo() {
 
     }
 
+    for j in [1..] {
+        
+    }
+
     while x {
 
     }

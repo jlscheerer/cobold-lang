@@ -62,7 +62,10 @@ public:
                       std::unique_ptr<Expression> &&rhs)
       : lhs_(std::move(lhs)), rhs_(std::move(rhs)), assgn_type_(assign_type) {}
 
+  const Expression *lhs() const { return lhs_.get(); }
   const AssignmentType assgn_type() const { return assgn_type_; }
+  const Expression *rhs() const { return rhs_.get(); }
+
   StatementType type() const { return StatementType::Assignment; }
 
   static std::string TypeToString(const AssignmentType assgn_type);
@@ -95,6 +98,7 @@ public:
   ExpressionStatement(std::unique_ptr<Expression> &&expression)
       : expression_(std::move(expression)) {}
 
+  const Expression *expression() const { return expression_.get(); }
   StatementType type() const { return StatementType::Expression; }
 
 private:
@@ -132,7 +136,7 @@ public:
                  std::unique_ptr<CompoundStatement> &&body)
       : condition_(std::move(condition)), body_(std::move(body)) {}
 
-  const std::unique_ptr<Expression> &condition() { return condition_; }
+  const Expression *condition() const { return condition_.get(); }
   const std::unique_ptr<CompoundStatement> &body() const { return body_; }
   StatementType type() const { return StatementType::While; }
 
@@ -152,6 +156,8 @@ public:
   const bool is_const() const { return is_const_; }
   const std::string &identifier() const { return identifier_; }
   const Type *decl_type() const { return decl_type_; }
+  const Expression *expression() const { return expression_.get(); }
+
   StatementType type() const { return StatementType::Declaration; }
 
 private:
