@@ -46,3 +46,25 @@ hedron_compile_commands_setup()
 
 load("//bazel:deps.bzl", "antlr4_deps")
 antlr4_deps()
+
+new_local_repository(
+    name = "llvm-raw",
+    build_file_content = "# empty",
+    path = "third_party/llvm-project",
+)
+
+# The subset of LLVM targets that Cobold cares about.
+_LLVM_TARGETS = [
+    "AArch64",
+    "ARM",
+    "X86",
+]
+
+load("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure", "llvm_disable_optional_support_deps")
+
+llvm_configure(name = "llvm-project", targets = _LLVM_TARGETS)
+
+# Disables optional dependencies for Support like zlib and terminfo. You may
+# instead want to configure them using the macros in the corresponding bzl
+# files.
+llvm_disable_optional_support_deps()
