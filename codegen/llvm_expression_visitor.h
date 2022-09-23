@@ -1,0 +1,39 @@
+#ifndef COBOLD_CODEGEN_LLVM_EXPRESSION_VISITOR
+#define COBOLD_CODEGEN_LLVM_EXPRESSION_VISITOR
+
+#include "core/expression.h"
+#include "visitor/expression_visitor.h"
+
+#include "llvm/ADT/APFloat.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+
+namespace Cobold {
+class LLVMExpressionVisitor : private ExpressionVisitor<llvm::Value *> {
+public:
+  static llvm::Value *Translate(llvm::LLVMContext *context,
+                                const Expression *expr);
+
+private:
+  LLVMExpressionVisitor(llvm::LLVMContext *context) : context_(context) {}
+
+  llvm::Value *DispatchEmpty() override;
+  llvm::Value *DispatchTernary(const TernaryExpression *expr) override;
+  llvm::Value *DispatchBinary(const BinaryExpression *expr) override;
+  llvm::Value *DispatchUnary(const UnaryExpression *expr) override;
+  llvm::Value *DispatchCall(const CallExpression *expr) override;
+  llvm::Value *DispatchRange(const RangeExpression *expr) override;
+  llvm::Value *DispatchArray(const ArrayExpression *expr) override;
+  llvm::Value *DispatchCast(const CastExpression *expr) override;
+  llvm::Value *DispatchConstant(const ConstantExpression *expr) override;
+  llvm::Value *DispatchIdentifier(const IdentifierExpression *expr) override;
+  llvm::Value *
+  DispatchMemberAccess(const MemberAccessExpression *expr) override;
+  llvm::Value *DispatchArrayAccess(const ArrayAccessExpression *expr) override;
+  llvm::Value *DispatchCallOp(const CallOpExpression *expr) override;
+
+  llvm::LLVMContext *context_;
+};
+} // namespace Cobold
+
+#endif /* COBOLD_CODEGEN_LLVM_EXPRESSION_VISITOR */

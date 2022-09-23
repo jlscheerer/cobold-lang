@@ -4,24 +4,53 @@
 #include "core/expression.h"
 
 namespace Cobold {
-class ExpressionVisitor {
+template <typename RetType = void> class ExpressionVisitor {
 public:
-  void Visit(const Expression *expr);
+  RetType Visit(const Expression *expr) {
+    if (expr == nullptr)
+      return DispatchEmpty();
+    switch (expr->type()) {
+    case ExpressionType::Ternary:
+      return DispatchTernary(expr->As<TernaryExpression>());
+    case ExpressionType::Binary:
+      return DispatchBinary(expr->As<BinaryExpression>());
+    case ExpressionType::Unary:
+      return DispatchUnary(expr->As<UnaryExpression>());
+    case ExpressionType::Call:
+      return DispatchCall(expr->As<CallExpression>());
+    case ExpressionType::Range:
+      return DispatchRange(expr->As<RangeExpression>());
+    case ExpressionType::Array:
+      return DispatchArray(expr->As<ArrayExpression>());
+    case ExpressionType::Cast:
+      return DispatchCast(expr->As<CastExpression>());
+    case ExpressionType::Constant:
+      return DispatchConstant(expr->As<ConstantExpression>());
+    case ExpressionType::Identifier:
+      return DispatchIdentifier(expr->As<IdentifierExpression>());
+    case ExpressionType::MemberAccess:
+      return DispatchMemberAccess(expr->As<MemberAccessExpression>());
+    case ExpressionType::ArrayAccess:
+      return DispatchArrayAccess(expr->As<ArrayAccessExpression>());
+    case ExpressionType::CallOp:
+      return DispatchCallOp(expr->As<CallOpExpression>());
+    }
+  }
 
 protected:
-  virtual void DispatchEmpty() { assert(false); };
-  virtual void DispatchTernary(const TernaryExpression *expr) = 0;
-  virtual void DispatchBinary(const BinaryExpression *expr) = 0;
-  virtual void DispatchUnary(const UnaryExpression *expr) = 0;
-  virtual void DispatchCall(const CallExpression *expr) = 0;
-  virtual void DispatchRange(const RangeExpression *expr) = 0;
-  virtual void DispatchArray(const ArrayExpression *expr) = 0;
-  virtual void DispatchCast(const CastExpression *expr) = 0;
-  virtual void DispatchConstant(const ConstantExpression *expr) = 0;
-  virtual void DispatchIdentifier(const IdentifierExpression *expr) = 0;
-  virtual void DispatchMemberAccess(const MemberAccessExpression *expr) = 0;
-  virtual void DispatchArrayAccess(const ArrayAccessExpression *expr) = 0;
-  virtual void DispatchCallOp(const CallOpExpression *expr) = 0;
+  virtual RetType DispatchEmpty() { assert(false); };
+  virtual RetType DispatchTernary(const TernaryExpression *expr) = 0;
+  virtual RetType DispatchBinary(const BinaryExpression *expr) = 0;
+  virtual RetType DispatchUnary(const UnaryExpression *expr) = 0;
+  virtual RetType DispatchCall(const CallExpression *expr) = 0;
+  virtual RetType DispatchRange(const RangeExpression *expr) = 0;
+  virtual RetType DispatchArray(const ArrayExpression *expr) = 0;
+  virtual RetType DispatchCast(const CastExpression *expr) = 0;
+  virtual RetType DispatchConstant(const ConstantExpression *expr) = 0;
+  virtual RetType DispatchIdentifier(const IdentifierExpression *expr) = 0;
+  virtual RetType DispatchMemberAccess(const MemberAccessExpression *expr) = 0;
+  virtual RetType DispatchArrayAccess(const ArrayAccessExpression *expr) = 0;
+  virtual RetType DispatchCallOp(const CallOpExpression *expr) = 0;
 };
 } // namespace Cobold
 

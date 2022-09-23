@@ -6,5 +6,6 @@ cc_binary(
     deps = [
         "//parser:parser",
         "//codegen:llvm_codegen",
+        "//codegen:llvm_type_visitor",
     ],
 )

@@ -1,5 +1,6 @@
 #include "core/expression.h"
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -75,8 +76,10 @@ ConstantExpression::String(const std::string &value) {
 
 absl::StatusOr<std::unique_ptr<ConstantExpression>>
 ConstantExpression::Integer(const std::string &value) {
-  // TODO(jlscheerer) Convert to integer!
-  return std::make_unique<ConstantExpression>(value);
+  // TODO(jlscheerer) Improve this conversion
+  char *end;
+  long long i = std::strtoll(value.c_str(), &end, 10);
+  return std::make_unique<ConstantExpression>((int64_t)i);
 }
 
 absl::StatusOr<std::unique_ptr<ConstantExpression>>

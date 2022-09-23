@@ -8,7 +8,7 @@
 #include "visitor/expression_visitor.h"
 
 namespace Cobold {
-class ExpressionPrinter : private ExpressionVisitor {
+class ExpressionPrinter : private ExpressionVisitor<void> {
 public:
   static std::string Print(const Expression *expr);
 

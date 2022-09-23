@@ -1,0 +1,7 @@
+import "std/io";
+
+fn Print(num: i32) #extern("__std_io_Print");
+
+fn Main() -> i32 {
+    return 72;
+}

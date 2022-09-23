@@ -1,3 +1,3 @@
 #include <stdio.h>
 
-void print(int x) { printf("%d\n", x); }
+void Print(int x) { printf("%d\n", x); }

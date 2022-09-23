@@ -53,6 +53,7 @@ public:
                   const Type *return_type, CompoundStatement &&body)
       : Function(name, arguments, return_type), body_(std::move(body)) {}
   const bool external() const override { return false; }
+  const CompoundStatement &body() const { return body_; }
 
   std::string DebugString() const override {
     return absl::StrCat(GetSignature(), "\n", StatementPrinter::Print(&body_));
