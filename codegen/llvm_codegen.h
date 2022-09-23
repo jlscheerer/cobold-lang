@@ -19,6 +19,8 @@ private:
   void GenerateLLVM();
 
   absl::Status Emit(const std::string &filename);
+  absl::Status Build(const std::string &filename);
+  llvm::Function *GeneratePrintFn();
 
   std::unique_ptr<llvm::LLVMContext> context_;
   std::unique_ptr<llvm::Module> module_;

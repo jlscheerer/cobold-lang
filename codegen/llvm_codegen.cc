@@ -1,5 +1,6 @@
 #include "codegen/llvm_codegen.h"
 
+#include <cstdlib>
 #include <memory>
 #include <system_error>
 
@@ -32,7 +33,7 @@ namespace Cobold {
 absl::Status LLVMCodeGen::Generate() {
   LLVMCodeGen codegen;
   codegen.GenerateLLVM();
-  return codegen.Emit("output.o");
+  return codegen.Build("output");
 }
 
 LLVMCodeGen::LLVMCodeGen() {
@@ -41,7 +42,18 @@ LLVMCodeGen::LLVMCodeGen() {
   builder_ = std::make_unique<llvm::IRBuilder<>>(*context_);
 }
 
+llvm::Function *LLVMCodeGen::GeneratePrintFn() {
+  llvm::FunctionType *function_type =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(*context_),
+                              {llvm::Type::getIntNTy(*context_, 32)}, false);
+  llvm::Function *function = llvm::Function::Create(
+      function_type, llvm::Function::ExternalLinkage, "print", module_.get());
+  llvm::verifyFunction(*function);
+  return function;
+}
+
 void LLVMCodeGen::GenerateLLVM() {
+  llvm::Function *print = GeneratePrintFn();
   // Generate the entry point for the module: int main(int argc, char **argv)
   std::vector<llvm::Type *> args{
       llvm::Type::getIntNTy(*context_, 32),
@@ -51,9 +63,14 @@ void LLVMCodeGen::GenerateLLVM() {
       llvm::Type::getIntNTy(*context_, 32), args, false);
   llvm::Function *function = llvm::Function::Create(
       function_type, llvm::Function::ExternalLinkage, "main", module_.get());
+
   llvm::BasicBlock *basic_block =
       llvm::BasicBlock::Create(*context_, "entry", function);
   builder_->SetInsertPoint(basic_block);
+
+  builder_->CreateCall(
+      print, {llvm::ConstantInt::get(*context_, llvm::APInt(32, 17, true))});
+
   llvm::Value *ret_value =
       llvm::ConstantInt::get(*context_, llvm::APInt(32, 17, true));
   builder_->CreateRet(ret_value);
@@ -101,6 +118,40 @@ absl::Status LLVMCodeGen::Emit(const std::string &filename) {
   pass.run(*module_);
   out_file.flush();
 
+  return absl::OkStatus();
+}
+
+std::string exec(const char *cmd) {
+  std::array<char, 128> buffer;
+  std::string result;
+
+  auto pipe = popen(cmd, "r"); // get rid of shared_ptr
+
+  if (!pipe)
+    throw std::runtime_error("popen() failed!");
+
+  while (!feof(pipe)) {
+    if (fgets(buffer.data(), 128, pipe) != nullptr)
+      result += buffer.data();
+  }
+
+  auto rc = pclose(pipe);
+
+  if (rc == EXIT_SUCCESS) { // == 0
+
+  } else if (rc == EXIT_FAILURE) { // EXIT_FAILURE is not used by all programs,
+                                   // maybe needs some adaptation.
+  }
+  return result;
+}
+
+absl::Status LLVMCodeGen::Build(const std::string &filename) {
+  absl::Status status = Emit(absl::StrCat(filename, ".o"));
+  if (!status.ok())
+    return status;
+  exec(absl::StrCat("gcc ", absl::StrCat(filename, ".o"),
+                    " std/bin/cobold_io.o -o ", filename)
+           .c_str());
   return absl::OkStatus();
 }
 // `LLVMCodeGen` ===================================================
