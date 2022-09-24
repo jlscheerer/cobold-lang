@@ -12,6 +12,7 @@
 #include "absl/status/statusor.h"
 #include "core/expression.h"
 #include "core/function.h"
+#include "source_location.h"
 
 namespace Cobold {
 namespace {
@@ -20,30 +21,84 @@ template <typename T> absl::Status InvalidArgument(std::string type, T *t) {
       absl::StrCat("Invalid ", type, ": ",
                    t != nullptr ? "\"" + t->getText() + "\"" : "null"));
 }
-} // namespace
 
+std::vector<std::string> ReadFileToBuffer(const std::string &filename) {
+  std::string str;
+  std::vector<std::string> file_contents;
+
+  std::fstream file;
+  file.open(filename, std::ios::in);
+
+  while (getline(file, str)) {
+    file_contents.push_back(str);
+  }
+  return file_contents;
+}
+} // namespace
+  // `ParserErrorListener` ================================================
+void ParserErrorListener::syntaxError(antlr4::Recognizer *recognizer,
+                                      antlr4::Token *offendingSymbol,
+                                      size_t line, size_t charPositionInLine,
+                                      const std::string &msg,
+                                      std::exception_ptr e) {
+  parser_->error_context_ << MakeError(SourceLocation(parser_->filename_, line,
+                                                      charPositionInLine,
+                                                      parser_->buffer_),
+                                       msg, true);
+}
+
+void ParserErrorListener::reportAmbiguity(antlr4::Parser *recognizer,
+                                          const antlr4::dfa::DFA &dfa,
+                                          size_t startIndex, size_t stopIndex,
+                                          bool exact,
+                                          const antlrcpp::BitSet &ambigAlts,
+                                          antlr4::atn::ATNConfigSet *configs) {
+  // TODO(jlscheerer) Switch to SourceSpan once this is supported.
+  assert(false);
+}
+
+void ParserErrorListener::reportAttemptingFullContext(
+    antlr4::Parser *recognizer, const antlr4::dfa::DFA &dfa, size_t startIndex,
+    size_t stopIndex, const antlrcpp::BitSet &conflictingAlts,
+    antlr4::atn::ATNConfigSet *configs) {
+  assert(false);
+}
+
+void ParserErrorListener::reportContextSensitivity(
+    antlr4::Parser *recognizer, const antlr4::dfa::DFA &dfa, size_t startIndex,
+    size_t stopIndex, size_t prediction, antlr4::atn::ATNConfigSet *configs) {
+  assert(false);
+}
+// `ParserErrorListener` ================================================
+
+// `Parser` =============================================================
 absl::StatusOr<SourceFile> Parser::Parse(const std::string &filename) {
   std::ifstream source_file(filename);
   if (!source_file.is_open()) {
     return absl::InvalidArgumentError("Could not open source file.");
   }
 
+  Parser parser(filename, ReadFileToBuffer(filename));
+
   antlr4::ANTLRInputStream input(source_file);
   CoboldLexer lexer(&input);
+
+  lexer.removeErrorListeners();
+  lexer.addErrorListener(&parser.listener_);
+  *parser.error_context_;
+
   antlr4::CommonTokenStream tokens(&lexer);
   CoboldParser _parser(&tokens);
+
+  _parser.removeErrorListeners();
+  _parser.addErrorListener(&parser.listener_);
+
   CoboldParser::FileContext *file = _parser.file();
+  *parser.error_context_;
 
   source_file.close();
   tokens.fill();
-  return InternalParse(filename, file);
-}
-
-absl::StatusOr<SourceFile>
-Parser::InternalParse(const std::string &filename,
-                      CoboldParser::FileContext *ctx) {
-  Parser parser;
-  return parser.ParseFile(filename, ctx);
+  return parser.ParseFile(filename, file);
 }
 
 absl::StatusOr<SourceFile> Parser::ParseFile(const std::string &filename,
@@ -64,6 +119,7 @@ absl::StatusOr<SourceFile> Parser::ParseFile(const std::string &filename,
       return parsed_fn.status();
     file.functions_.push_back(*std::move(parsed_fn));
   }
+  *error_context_;
   return file;
 }
 
@@ -609,4 +665,10 @@ Parser::ParsePrimaryExpression(CoboldParser::PrimaryExpressionContext *ctx) {
   }
   return std::make_unique<IdentifierExpression>(ctx->Identifier()->getText());
 }
+
+SourceLocation Parser::LocationOf(antlr4::tree::TerminalNode *node) {
+  return SourceLocation(filename_, node->getSymbol()->getLine(),
+                        node->getSymbol()->getCharPositionInLine(), buffer_);
+}
+// `Parser` =============================================================
 } // namespace Cobold

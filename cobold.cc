@@ -9,6 +9,6 @@
 int main(int argc, char **argv) {
   const std::string filename = "test/simple.cb";
   absl::StatusOr<Cobold::SourceFile> source = Cobold::Parser::Parse(filename);
-  // std::cout << source.value().DebugString() << std::endl;
-  auto _ = Cobold::LLVMCodeGen::Generate(source.value());
+  std::cout << source.value().DebugString() << std::endl;
+  // auto _ = Cobold::LLVMCodeGen::Generate(source.value());
 }

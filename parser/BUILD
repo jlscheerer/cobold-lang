@@ -1,6 +1,13 @@
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
+    name = "source_location",
+    srcs = ["source_location.cc"],
+    hdrs = ["source_location.h"],
+    deps = [],
+)
+
+cc_library(
     name = "source_file",
     srcs = ["source_file.cc"],
     hdrs = ["source_file.h"],
@@ -20,6 +27,7 @@ cc_library(
     deps = [
         ":source_file",
         "//core:function",
+        "//reporting:error_context",
         "//parser/internal:options",
         "//parser/internal:cobold_cc_parser",
         "@com_google_absl//absl/status:statusor",

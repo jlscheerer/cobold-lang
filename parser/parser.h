@@ -11,15 +11,47 @@
 #include "parser/internal/CoboldParser.h"
 #include "parser/internal/options.h"
 #include "parser/source_file.h"
+#include "reporting/error_context.h"
+#include "source_location.h"
 
 namespace Cobold {
+class Parser;
+class ParserErrorListener : public antlr4::ANTLRErrorListener {
+public:
+  ParserErrorListener(Parser *parser) : parser_(parser) {}
+
+  void syntaxError(antlr4::Recognizer *recognizer,
+                   antlr4::Token *offendingSymbol, size_t line,
+                   size_t charPositionInLine, const std::string &msg,
+                   std::exception_ptr e) override;
+
+  void reportAmbiguity(antlr4::Parser *recognizer, const antlr4::dfa::DFA &dfa,
+                       size_t startIndex, size_t stopIndex, bool exact,
+                       const antlrcpp::BitSet &ambigAlts,
+                       antlr4::atn::ATNConfigSet *configs) override;
+
+  void reportAttemptingFullContext(antlr4::Parser *recognizer,
+                                   const antlr4::dfa::DFA &dfa,
+                                   size_t startIndex, size_t stopIndex,
+                                   const antlrcpp::BitSet &conflictingAlts,
+                                   antlr4::atn::ATNConfigSet *configs) override;
+
+  void reportContextSensitivity(antlr4::Parser *recognizer,
+                                const antlr4::dfa::DFA &dfa, size_t startIndex,
+                                size_t stopIndex, size_t prediction,
+                                antlr4::atn::ATNConfigSet *configs) override;
+
+private:
+  Parser *parser_;
+};
+
 class Parser {
 public:
   static absl::StatusOr<SourceFile> Parse(const std::string &filename);
 
 private:
-  static absl::StatusOr<SourceFile>
-  InternalParse(const std::string &filename, CoboldParser::FileContext *ctxt);
+  Parser(const std::string &filename, std::vector<std::string> &&buffer)
+      : filename_(filename), buffer_(std::move(buffer)), listener_(this) {}
 
   absl::StatusOr<SourceFile> ParseFile(const std::string &filename,
                                        CoboldParser::FileContext *ctx);
@@ -98,6 +130,16 @@ private:
   ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx);
   absl::StatusOr<std::unique_ptr<Expression>>
   ParsePrimaryExpression(CoboldParser::PrimaryExpressionContext *ctx);
+
+  SourceLocation LocationOf(antlr4::tree::TerminalNode *node);
+
+  std::string filename_;
+  std::vector<std::string> buffer_;
+
+  ParserErrorListener listener_;
+  ErrorContext error_context_;
+
+  friend class ParserErrorListener;
 };
 } // namespace Cobold
 
