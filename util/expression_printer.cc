@@ -210,6 +210,18 @@ void ExpressionPrinter::DispatchCallOp(const CallOpExpression *expr) {
   Append(")");
 }
 
+void ExpressionPrinter::DispatchMalloc(const MallocExpression *expr) {
+  Append("malloc(");
+  Append(expr->decl_type()->DebugString());
+  Append(")(");
+  Visit(expr->expression());
+  Append(")");
+}
+
+void ExpressionPrinter::DispatchSizeof(const SizeofExpression *expr) {
+  return Append("sizeof(", expr->decl_type()->DebugString(), ")");
+}
+
 void ExpressionPrinter::AppendLine(const std::string &line) {
   buffer_ = absl::StrCat(std::move(buffer_), line);
 }

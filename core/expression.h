@@ -26,7 +26,9 @@ enum class ExpressionType {
   Identifier,   // a
   MemberAccess, // a.identifier, a->identifier
   ArrayAccess,  // a[...]
-  CallOp,       // a(...)
+  CallOp,       // a(...),
+  Malloc,       // malloc(i32)(...)
+  Sizeof,       // sizeof(i32)
 };
 class Expression {
 public:
@@ -432,6 +434,48 @@ public:
 private:
   std::unique_ptr<Expression> expr_;
   std::vector<std::unique_ptr<Expression>> args_;
+};
+
+class MallocExpression : public Expression {
+public:
+  MallocExpression(SourceLocation location, const Type *type,
+                   std::unique_ptr<Expression> &&expr)
+      : Expression(location), decl_type_(type), expr_(std::move(expr)) {}
+
+  const Type *decl_type() const { return decl_type_; }
+  const Expression *expression() const { return expr_.get(); }
+  Expression *mutable_expression() { return expr_.get(); }
+
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Malloc;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<MallocExpression>(location_, decl_type_,
+                                              expr_->Clone());
+  }
+
+private:
+  const Type *decl_type_;
+  std::unique_ptr<Expression> expr_;
+
+  friend class TypeInferenceVisitor;
+};
+
+class SizeofExpression : public Expression {
+public:
+  SizeofExpression(SourceLocation location, const Type *type)
+      : Expression(location), decl_type_(type) {}
+
+  const Type *decl_type() const { return decl_type_; }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Sizeof;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<SizeofExpression>(location_, decl_type_);
+  }
+
+private:
+  const Type *decl_type_;
 };
 } // namespace Cobold
 

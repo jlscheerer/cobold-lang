@@ -14,14 +14,24 @@ void LLVMStatementVisitor::DispatchReturn(const ReturnStatement *stmt) {
 
 void LLVMStatementVisitor::DispatchAssignment(const AssignmentStatement *stmt) {
   assert(stmt->assgn_type() == AssignmentType::EQ);
-  assert(stmt->lhs()->type() == ExpressionType::Identifier);
-  std::string identifier =
-      stmt->lhs()->As<IdentifierExpression>()->identifier();
-  assert(context_->named_vars.contains(identifier));
+  if (stmt->lhs()->type() == ExpressionType::Identifier) {
+    std::string identifier =
+        stmt->lhs()->As<IdentifierExpression>()->identifier();
+    assert(context_->named_vars.contains(identifier));
 
-  llvm::AllocaInst *alloca = context_->named_vars[identifier];
-  llvm::Value *value = LLVMExpressionVisitor::Translate(context_, stmt->rhs());
-  context_->llvm_builder()->CreateStore(value, alloca);
+    llvm::AllocaInst *alloca = context_->named_vars[identifier];
+    llvm::Value *value =
+        LLVMExpressionVisitor::Translate(context_, stmt->rhs());
+    context_->llvm_builder()->CreateStore(value, alloca);
+  } else if (stmt->lhs()->type() == ExpressionType::Unary &&
+             stmt->lhs()->As<UnaryExpression>()->op_type() ==
+                 UnaryExpressionType::DEREFERENCE) {
+    llvm::Value *value =
+        LLVMExpressionVisitor::Translate(context_, stmt->rhs());
+    context_->llvm_builder()->CreateStore(
+        value, LLVMExpressionVisitor::Translate(
+                   context_, stmt->lhs()->As<UnaryExpression>()->expression()));
+  }
 }
 
 void LLVMStatementVisitor::DispatchCompound(const CompoundStatement *stmt) {

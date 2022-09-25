@@ -39,7 +39,12 @@ llvm::Type *LLVMTypeVisitor::DispatchRange(const RangeType *type) {
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchPointer(const PointerType *type) {
-  assert(false);
+  // "Invalid type for pointer element!"
+  if (type->underlying_type() == nullptr ||
+      type->underlying_type() == NilType::Get()) {
+    return llvm::PointerType::get(llvm::Type::getIntNTy(**context_, 8), 0);
+  }
+  return llvm::PointerType::get(Visit(type->underlying_type()), 0);
 }
 // `LLVMTypeVisitor` ====================================================
 } // namespace Cobold

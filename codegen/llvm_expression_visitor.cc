@@ -43,6 +43,11 @@ LLVMExpressionVisitor::DispatchBinary(const BinaryExpression *expr) {
 }
 
 llvm::Value *LLVMExpressionVisitor::DispatchUnary(const UnaryExpression *expr) {
+  const Type *type = expr->expression()->expr_type();
+  const TypeClass type_class = type->type_class();
+  if (type_class == TypeClass::Pointer) {
+    return PointerUnaryExpression(expr, Visit(expr->expression()));
+  }
   assert(false);
 }
 
@@ -81,6 +86,13 @@ llvm::Value *LLVMExpressionVisitor::DispatchCast(const CastExpression *expr) {
                     0));
     return context_->llvm_builder()->CreateICmpNE(Visit(expr->expression()),
                                                   zero);
+  } else if (expr->expression()->expr_type()->type_class() ==
+                 TypeClass::Pointer &&
+             expr->cast_type()->type_class() == TypeClass::Pointer) {
+    return context_->llvm_builder()->CreateBitCast(
+        Visit(expr->expression()),
+        LLVMTypeVisitor::Translate(context_, expr->cast_type()),
+        "pointer_cast");
   }
   assert(false);
 }
@@ -136,6 +148,19 @@ LLVMExpressionVisitor::DispatchCallOp(const CallOpExpression *expr) {
   return context_->llvm_builder()->CreateCall(function, args);
 }
 
+llvm::Value *
+LLVMExpressionVisitor::DispatchMalloc(const MallocExpression *expr) {
+  assert(false); // should be rewritten! to fn call.
+}
+
+llvm::Value *
+LLVMExpressionVisitor::DispatchSizeof(const SizeofExpression *expr) {
+  return llvm::ConstantInt::get(
+      llvm::Type::getInt64Ty(**context_),
+      context_->llvm_module()->getDataLayout().getTypeAllocSize(
+          LLVMTypeVisitor::Translate(context_, expr->decl_type())));
+}
+
 llvm::Value *LLVMExpressionVisitor::IntegralBinaryExpression(
     BinaryExpressionType op_type, llvm::Value *lhs, llvm::Value *rhs) {
   switch (op_type) {
@@ -178,5 +203,29 @@ llvm::Value *LLVMExpressionVisitor::IntegralBinaryExpression(
     break;
   }
 }
+
+llvm::Value *
+LLVMExpressionVisitor::PointerUnaryExpression(const UnaryExpression *expr,
+                                              llvm::Value *value) {
+  UnaryExpressionType op_type = expr->op_type();
+  switch (op_type) {
+  case UnaryExpressionType::PRE_INCREMENT:
+  case UnaryExpressionType::PRE_DECREMENT:
+  case UnaryExpressionType::POST_INCREMENT:
+  case UnaryExpressionType::POST_DECREMENT:
+  case UnaryExpressionType::REFERENCE:
+    assert(false);
+  case UnaryExpressionType::DEREFERENCE:
+    return context_->llvm_builder()->CreateLoad(
+        LLVMTypeVisitor::Translate(context_, expr->expr_type()), value, "");
+  case UnaryExpressionType::NEGATIVE:
+  case UnaryExpressionType::POSITIVE:
+  case UnaryExpressionType::INVERT:
+  case UnaryExpressionType::NOT:
+    assert(false);
+    break;
+  }
+}
+
 // `LLVMExpressionVisitor` ==============================================
 } // namespace Cobold

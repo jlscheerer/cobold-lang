@@ -127,6 +127,10 @@ private:
   absl::StatusOr<std::unique_ptr<Expression>>
   ParseUnaryExpression(CoboldParser::UnaryExpressionContext *ctx);
   absl::StatusOr<std::unique_ptr<Expression>>
+  ParseMallocExpression(CoboldParser::MallocExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
+  ParseSizeofExpression(CoboldParser::SizeOfExpressionContext *ctx);
+  absl::StatusOr<std::unique_ptr<Expression>>
   ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx);
   absl::StatusOr<std::unique_ptr<Expression>>
   ParsePrimaryExpression(CoboldParser::PrimaryExpressionContext *ctx);

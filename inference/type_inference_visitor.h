@@ -52,6 +52,8 @@ private:
   void DispatchMemberAccess(MemberAccessExpression *expr) override;
   void DispatchArrayAccess(ArrayAccessExpression *expr) override;
   void DispatchCallOp(CallOpExpression *expr) override;
+  void DispatchMalloc(MallocExpression *expr) override;
+  void DispatchSizeof(SizeofExpression *expr) override;
 
   std::unique_ptr<Expression>
   WrapExplicitCast(const Type *type, std::unique_ptr<Expression> &&expr);

@@ -36,6 +36,10 @@ public:
       return DispatchArrayAccess(expr->template As<ArrayAccessExpression>());
     case ExpressionType::CallOp:
       return DispatchCallOp(expr->template As<CallOpExpression>());
+    case ExpressionType::Malloc:
+      return DispatchMalloc(expr->template As<MallocExpression>());
+    case ExpressionType::Sizeof:
+      return DispatchSizeof(expr->template As<SizeofExpression>());
     }
   }
 
@@ -65,6 +69,10 @@ protected:
       enable_const_if_t<ConstVisit, ArrayAccessExpression> *expr) = 0;
   virtual RetType
   DispatchCallOp(enable_const_if_t<ConstVisit, CallOpExpression> *expr) = 0;
+  virtual RetType
+  DispatchMalloc(enable_const_if_t<ConstVisit, MallocExpression> *expr) = 0;
+  virtual RetType
+  DispatchSizeof(enable_const_if_t<ConstVisit, SizeofExpression> *expr) = 0;
 };
 } // namespace Cobold
 

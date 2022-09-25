@@ -34,9 +34,14 @@ private:
   DispatchMemberAccess(const MemberAccessExpression *expr) override;
   llvm::Value *DispatchArrayAccess(const ArrayAccessExpression *expr) override;
   llvm::Value *DispatchCallOp(const CallOpExpression *expr) override;
+  llvm::Value *DispatchMalloc(const MallocExpression *expr) override;
+  llvm::Value *DispatchSizeof(const SizeofExpression *expr) override;
 
   llvm::Value *IntegralBinaryExpression(BinaryExpressionType op_type,
                                         llvm::Value *lhs, llvm::Value *rhs);
+
+  llvm::Value *PointerUnaryExpression(const UnaryExpression *expr,
+                                      llvm::Value *value);
 
   CoboldBuildContext *context_;
 };

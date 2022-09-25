@@ -35,6 +35,27 @@ std::vector<std::string> ReadFileToBuffer(const std::string &filename) {
   }
   return file_contents;
 }
+
+std::unique_ptr<Expression>
+RewriteMalloc(std::unique_ptr<MallocExpression> &&malloc) {
+  // malloc(type)(count) => (type*) __lib_malloc(sizeof(type) * count)
+  std::unique_ptr<Expression> lib_malloc =
+      std::make_unique<IdentifierExpression>(SourceLocation::Generated(),
+                                             "__lib_malloc");
+  std::unique_ptr<Expression> type_size = std::make_unique<SizeofExpression>(
+      SourceLocation::Generated(), malloc->decl_type());
+  std::unique_ptr<Expression> alloc_size = std::make_unique<BinaryExpression>(
+      SourceLocation::Generated(), std::move(type_size),
+      BinaryExpressionType::MULTIPLY, malloc->expression()->Clone());
+  std::vector<std::unique_ptr<Expression>> args;
+  args.push_back(std::move(alloc_size));
+
+  std::unique_ptr<Expression> lib_call = std::make_unique<CallOpExpression>(
+      SourceLocation::Generated(), std::move(lib_malloc), std::move(args));
+  return std::make_unique<CastExpression>(SourceLocation::Generated(),
+                                          Type::PointerTo(malloc->decl_type()),
+                                          std::move(lib_call));
+}
 } // namespace
   // `ParserErrorListener` ================================================
 void ParserErrorListener::syntaxError(antlr4::Recognizer *recognizer,
@@ -598,6 +619,10 @@ absl::StatusOr<std::unique_ptr<Expression>>
 Parser::ParseCastExpression(CoboldParser::CastExpressionContext *ctx) {
   if (ctx->unaryExpression())
     return ParseUnaryExpression(ctx->unaryExpression());
+  if (ctx->mallocExpression())
+    return ParseMallocExpression(ctx->mallocExpression());
+  if (ctx->sizeOfExpression())
+    return ParseSizeofExpression(ctx->sizeOfExpression());
   assert(ctx->typeSpecifier() && ctx->castExpression());
   absl::StatusOr<const Type *> status_or_type = ParseType(ctx->typeSpecifier());
   absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
@@ -636,6 +661,29 @@ Parser::ParseUnaryExpression(CoboldParser::UnaryExpressionContext *ctx) {
         UnaryExpression::TypeFromPrefixString(op->getText()), std::move(expr));
   }
   return expr;
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseMallocExpression(CoboldParser::MallocExpressionContext *ctx) {
+  absl::StatusOr<const Type *> status_or_type = ParseType(ctx->typeSpecifier());
+  if (!status_or_type.ok())
+    return status_or_type.status();
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+      ParseConditionalExpression(ctx->conditionalExpression());
+  if (!status_or_expr.ok())
+    return status_or_expr.status();
+  // TODO(jlscheerer) Clean this up.
+  return RewriteMalloc(std::make_unique<MallocExpression>(
+      LocationOf(ctx->MALLOC()), *status_or_type, std::move(*status_or_expr)));
+}
+
+absl::StatusOr<std::unique_ptr<Expression>>
+Parser::ParseSizeofExpression(CoboldParser::SizeOfExpressionContext *ctx) {
+  absl::StatusOr<const Type *> status_or_type = ParseType(ctx->typeSpecifier());
+  if (!status_or_type.ok())
+    return status_or_type.status();
+  return std::make_unique<SizeofExpression>(LocationOf(ctx->SIZEOF()),
+                                            *status_or_type);
 }
 
 absl::StatusOr<std::unique_ptr<Expression>>

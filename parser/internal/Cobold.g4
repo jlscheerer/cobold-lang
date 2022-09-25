@@ -73,9 +73,15 @@ unaryExpression:
 prefixOperator: '++' | '--';
 unaryOperator: '&' | '>>' | '+' | '-' | '~' | '!';
 
+mallocExpression:
+	MALLOC '(' typeSpecifier ')' '(' conditionalExpression ')';
+sizeOfExpression: SIZEOF '(' typeSpecifier ')';
+
 castExpression:
 	'(' typeSpecifier ')' castExpression
-	| unaryExpression;
+	| unaryExpression
+	| mallocExpression
+	| sizeOfExpression;
 
 multiplicativeExpression:
 	castExpression (multiplicativeOperator castExpression)*;
@@ -122,6 +128,7 @@ expression:
 	| callExpression
 	| rangeExpression
 	| arrayExpression;
+
 callExpression:
 	Identifier '(' (expression (',' expression)*)? ')';
 rangeExpression:
@@ -173,6 +180,9 @@ F32: 'f32';
 F64: 'f64';
 F128: 'f128';
 F256: 'f256';
+
+MALLOC: 'malloc';
+SIZEOF: 'sizeof';
 
 assignmentStatement:
 	expression assignmentOperator expression ';';

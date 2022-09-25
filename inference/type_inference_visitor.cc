@@ -649,6 +649,16 @@ void TypeInferenceVisitor::DispatchCallOp(CallOpExpression *expr) {
   expr->set_expr_type(fn_ret_type);
 }
 
+void TypeInferenceVisitor::DispatchMalloc(MallocExpression *expr) {
+  assert(false); // malloc should have been rewritten
+}
+
+void TypeInferenceVisitor::DispatchSizeof(SizeofExpression *expr) {
+  // TODO(jlscheerer) Maybe we want to consider a different type here instead.
+  // TODO(jlscheerer) Assert that we can get the size of the specified type.
+  expr->set_expr_type(IntegralType::OfSize(64));
+}
+
 std::unique_ptr<Expression>
 TypeInferenceVisitor::WrapExplicitCast(const Type *type,
                                        std::unique_ptr<Expression> &&expr) {

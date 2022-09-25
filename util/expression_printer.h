@@ -26,6 +26,9 @@ private:
   void DispatchMemberAccess(const MemberAccessExpression *expr) override;
   void DispatchArrayAccess(const ArrayAccessExpression *expr) override;
   void DispatchCallOp(const CallOpExpression *expr) override;
+  void DispatchMalloc(const MallocExpression *expr) override;
+  void DispatchSizeof(const SizeofExpression *expr) override;
+
   void AppendLine(const std::string &line);
   template <typename... Args> void Append(Args &&...args) {
     return AppendLine(absl::StrCat(args...));

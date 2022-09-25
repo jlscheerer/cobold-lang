@@ -2,16 +2,28 @@ import "io";
 
 fn Print(num: i32) #extern("__std_io_Print");
 
+// user calls of the form malloc(type)(count)
+// are rewritten to (type*) __lib_malloc(sizeof(type) * count)
+fn __lib_malloc(size: i64) -> nil* #extern("__std_memory_malloc");
+
+fn free(ptr: nil*) #extern("__std_memory_free");
+
 fn Add(x: i64, y: i64) -> i64 {
     return x + y;
 }
 
 fn Main() -> i32 {
-    Print((i32) -1);
-    var ans =  8 >> 1;
-    Print((i32) ans);
+    // Print((i32) -1);
+    // var ans =  8 >> 1;
+    // Print((i32) ans);
+    // Print((i32)12);
+    // var a = malloc(i32)(10);
+    // free((nil*) a);
 
-    var a = malloc(i32)(12);
+    var a = sizeof(i32);
+    var b = malloc(i32)(2);
 
-    return 0;
+    free((nil*) b);
+    
+    return 1;
 }
