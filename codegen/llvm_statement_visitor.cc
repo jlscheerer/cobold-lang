@@ -1,5 +1,6 @@
 #include "codegen/llvm_statement_visitor.h"
 
+#include "cobold_build_context.h"
 #include "codegen/llvm_expression_visitor.h"
 #include "codegen/llvm_type_visitor.h"
 
@@ -92,16 +93,23 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
   // TODO(jlscheerer) Supported unbounded sides.
   assert(range->lhs() && range->rhs());
 
+  // TODO(jlscheerer) Reformat to include prelude / postlude (for increment)
   llvm::BasicBlock *loop_condition =
       llvm::BasicBlock::Create(**context_, "loop_condition", function);
 
   llvm::BasicBlock *loop_body =
       llvm::BasicBlock::Create(**context_, "loop_body", function);
 
+  // this is referenced by potential `continue`s
+  llvm::BasicBlock *loop_increment =
+      llvm::BasicBlock::Create(**context_, "loop_increment", function);
+
   llvm::BasicBlock *after_loop =
       llvm::BasicBlock::Create(**context_, "after_loop", function);
 
-  // TODO(jlscheerer) Reformat to include prelude / postlude (for increment)
+  context_->loop_instruction_stack.push(LoopInstructionBlock{
+      .break_bb = after_loop, .continue_bb = loop_increment});
+
   // TODO(jlscheerer) Generalize this for different "iterators"
 
   // Prepare for the loop (i.e., init start)
@@ -128,6 +136,9 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
   // TODO(jlscheerer) Handle shadowing of the loop variable
   Visit(stmt->body().get());
 
+  context_->llvm_builder()->CreateBr(loop_increment);
+
+  context_->llvm_builder()->SetInsertPoint(loop_increment);
   // Loop Increment
   // TODO(jlscheerer) Assumes that this is a i64 for the addition.
   llvm::Value *step_increment = llvm::ConstantInt::get(
@@ -144,6 +155,8 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
 
   // Insert the conditional branch into the end of LoopEndBB.
   context_->llvm_builder()->CreateBr(loop_condition);
+
+  context_->loop_instruction_stack.pop();
 
   // Any new code will be inserted in AfterBB.
   context_->llvm_builder()->SetInsertPoint(after_loop);
@@ -163,6 +176,9 @@ void LLVMStatementVisitor::DispatchWhile(const WhileStatement *stmt) {
   llvm::BasicBlock *after_while =
       llvm::BasicBlock::Create(**context_, "after-while", function);
 
+  context_->loop_instruction_stack.push(LoopInstructionBlock{
+      .break_bb = after_while, .continue_bb = while_condition});
+
   context_->llvm_builder()->CreateBr(while_condition);
 
   context_->llvm_builder()->SetInsertPoint(while_condition);
@@ -173,6 +189,8 @@ void LLVMStatementVisitor::DispatchWhile(const WhileStatement *stmt) {
   context_->llvm_builder()->SetInsertPoint(while_body);
   Visit(stmt->body().get());
   context_->llvm_builder()->CreateBr(while_condition);
+
+  context_->loop_instruction_stack.pop();
 
   context_->llvm_builder()->SetInsertPoint(after_while);
 }
@@ -197,11 +215,44 @@ void LLVMStatementVisitor::DispatchDeclaration(
 }
 
 void LLVMStatementVisitor::DispatchBreak(const BreakStatement *stmt) {
-  assert(false);
+  assert(context_->loop_instruction_stack.size() > 0);
+  llvm::Function *function =
+      context_->llvm_builder()->GetInsertBlock()->getParent();
+
+  // TODO(jlscheerer) Rename these to be more uniform (i.e., prelude, ...)
+  llvm::BasicBlock *break_block =
+      llvm::BasicBlock::Create(**context_, "break-block", function);
+  llvm::BasicBlock *after_break =
+      llvm::BasicBlock::Create(**context_, "after-break", function);
+
+  // Wrap the break in a separate BasicBlock
+  context_->llvm_builder()->CreateBr(break_block);
+  context_->llvm_builder()->SetInsertPoint(break_block);
+  context_->llvm_builder()->CreateBr(
+      context_->loop_instruction_stack.top().break_bb);
+
+  context_->llvm_builder()->SetInsertPoint(after_break);
 }
 
 void LLVMStatementVisitor::DispatchContinue(const ContinueStatement *stmt) {
-  assert(false);
+  std::cout << "hiiii" << std::endl;
+  assert(context_->loop_instruction_stack.size() > 0);
+  llvm::Function *function =
+      context_->llvm_builder()->GetInsertBlock()->getParent();
+
+  // TODO(jlscheerer) Rename these to be more uniform (i.e., prelude, ...)
+  llvm::BasicBlock *continue_block =
+      llvm::BasicBlock::Create(**context_, "continue-block", function);
+  llvm::BasicBlock *after_continue =
+      llvm::BasicBlock::Create(**context_, "after-continue", function);
+
+  // Wrap the continue in a separate BasicBlock
+  context_->llvm_builder()->CreateBr(continue_block);
+  context_->llvm_builder()->SetInsertPoint(continue_block);
+  context_->llvm_builder()->CreateBr(
+      context_->loop_instruction_stack.top().continue_bb);
+
+  context_->llvm_builder()->SetInsertPoint(after_continue);
 }
 
 llvm::AllocaInst *LLVMStatementVisitor::CreateEntryBlockAlloca(

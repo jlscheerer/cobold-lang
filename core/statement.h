@@ -164,6 +164,8 @@ public:
 private:
   std::unique_ptr<Expression> condition_;
   std::unique_ptr<CompoundStatement> body_;
+
+  friend class TypeInferenceVisitor;
 };
 
 class DeclarationStatement : public Statement {
@@ -216,7 +218,7 @@ class BreakStatement : public Statement {
 };
 
 class ContinueStatement : public Statement {
-  StatementType type() const { return StatementType::Break; }
+  StatementType type() const { return StatementType::Continue; }
 };
 } // namespace Cobold
 

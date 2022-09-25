@@ -35,6 +35,9 @@ private:
   llvm::Value *DispatchArrayAccess(const ArrayAccessExpression *expr) override;
   llvm::Value *DispatchCallOp(const CallOpExpression *expr) override;
 
+  llvm::Value *IntegralBinaryExpression(BinaryExpressionType op_type,
+                                        llvm::Value *lhs, llvm::Value *rhs);
+
   CoboldBuildContext *context_;
 };
 } // namespace Cobold

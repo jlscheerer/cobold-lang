@@ -43,6 +43,8 @@ BinaryExpressionType BinaryExpression::TypeFromString(const std::string &type) {
     return BinaryExpressionType::SUBTRACT;
   if (type == "*")
     return BinaryExpressionType::MULTIPLY;
+  if (type == "/")
+    return BinaryExpressionType::DIVIDE;
   if (type == "%")
     return BinaryExpressionType::MOD;
   assert(false);

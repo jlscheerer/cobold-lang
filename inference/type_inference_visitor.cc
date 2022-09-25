@@ -72,7 +72,12 @@ void TypeInferenceVisitor::Annotate(SourceFile &file) {
 
 void TypeInferenceVisitor::AnnotateFunction(DefinedFunction *function) {
   type_context_.PushFunctionReturn(function->return_type());
+  type_context_.PushScope();
+  for (const auto &arg : function->arguments()) {
+    type_context_.StoreVar(arg.name, arg.type);
+  }
   StatementVisitor::Visit(&function->mutable_body());
+  type_context_.PopScope();
   type_context_.PopFunctionReturn();
 }
 
@@ -284,7 +289,24 @@ void TypeInferenceVisitor::DispatchFor(ForStatement *stmt) {
 void TypeInferenceVisitor::DispatchWhile(WhileStatement *stmt) {
   ExpressionVisitor::Visit(stmt->mutable_condition());
   // TODO(jlscheerer) Handle while [..] {}
-  assert(CanCastImplicitTo(stmt->condition()->expr_type(), BoolType::Get()));
+  if (CanCastImplicitTo(stmt->condition()->expr_type(), BoolType::Get())) {
+    // TODO(jlscheerer) Actually cast the expression to boolean!
+  } else if (stmt->condition()->expr_type()->type_class() == TypeClass::Range) {
+    // TODO(jlscheerer) Maybe we want to support:
+    // var a = [..]; while a { ... }
+    // in the future.
+    // For now we only support an unbounded range literal
+    assert(stmt->condition()->type() == ExpressionType::Range); // Range Literal
+    const RangeExpression *range = stmt->condition()->As<RangeExpression>();
+    assert(range->unbounded());
+    // Replace the unbounded expression with `true` literal
+    std::unique_ptr<Expression> true_literal =
+        ConstantExpression::True(SourceLocation::Generated());
+    true_literal->set_expr_type(BoolType::Get());
+    std::swap(stmt->condition_, true_literal);
+  } else {
+    assert(false); // unsupported condition for while expression!
+  }
   StatementVisitor::Visit(stmt->body().get());
 }
 
@@ -460,9 +482,10 @@ void TypeInferenceVisitor::DispatchBinary(BinaryExpression *expr) {
   case BinaryExpressionType::SHIFT_LEFT:
   case BinaryExpressionType::SHIFT_RIGHT:
     if (lhs_tc == TypeClass::Integral && rhs_tc == TypeClass::Integral) {
-      expr->rhs_ =
-          WrapExplicitCast(IntegralType::OfSize(8), std::move(expr->rhs_));
-      expr->set_expr_type(lhs_type);
+      const Type *promoted_type = PromoteArithmetic(lhs_type, rhs_type);
+      expr->lhs_ = WrapExplicitCast(promoted_type, std::move(expr->lhs_));
+      expr->rhs_ = WrapExplicitCast(promoted_type, std::move(expr->rhs_));
+      expr->set_expr_type(promoted_type);
       return;
     } else {
       assert(false);

@@ -1,6 +1,7 @@
 #ifndef COBOLD_CORE_EXPRESSION
 #define COBOLD_CORE_EXPRESSION
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -225,10 +226,20 @@ public:
                   std::unique_ptr<Expression> &&rhs)
       : Expression(location), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
+  const bool left_bounded() const {
+    return lhs() != nullptr && rhs() == nullptr;
+  }
+  const bool right_bounded() const {
+    return lhs() == nullptr && rhs() != nullptr;
+  }
+  const bool bounded() const { return lhs() != nullptr && rhs() != nullptr; }
+  const bool unbounded() const { return lhs() == nullptr && rhs() == nullptr; }
+
   const Expression *lhs() const { return lhs_.get(); }
   Expression *mutable_lhs() { return lhs_.get(); }
   const Expression *rhs() const { return rhs_.get(); }
   Expression *mutable_rhs() { return rhs_.get(); }
+
   virtual const ExpressionType type() const override {
     return ExpressionType::Range;
   }

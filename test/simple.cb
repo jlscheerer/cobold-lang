@@ -2,14 +2,16 @@ import "io";
 
 fn Print(num: i32) #extern("__std_io_Print");
 
-fn iadd_32(x: i32, y: i32) -> i64 #extern("__iadd_32");
+fn Add(x: i64, y: i64) -> i64 {
+    return x + y;
+}
 
 fn Main() -> i32 {
-    var a = true;
-    while true {
-        Print((i32) a);
-        a = false;
-        break;
-    }
-    return 1;
+    Print((i32) -1);
+    var ans =  8 >> 1;
+    Print((i32) ans);
+
+    var a = malloc(i32)(12);
+
+    return 0;
 }

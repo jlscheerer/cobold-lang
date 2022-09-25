@@ -22,7 +22,24 @@ LLVMExpressionVisitor::DispatchTernary(const TernaryExpression *expr) {
 
 llvm::Value *
 LLVMExpressionVisitor::DispatchBinary(const BinaryExpression *expr) {
-  assert(false);
+  llvm::Value *lhs = Visit(expr->lhs());
+  const Type *lhs_type = expr->lhs()->expr_type();
+  const TypeClass lhs_tc = lhs_type->type_class();
+
+  llvm::Value *rhs = Visit(expr->rhs());
+  const Type *rhs_type = expr->rhs()->expr_type();
+  const TypeClass rhs_tc = rhs_type->type_class();
+
+  if (lhs_tc == TypeClass::Integral && rhs_tc == TypeClass::Integral) {
+    assert(lhs_type == rhs_type ||
+           (expr->op_type() == BinaryExpressionType::SHIFT_LEFT ||
+            expr->op_type() ==
+                BinaryExpressionType::SHIFT_RIGHT)); // Type inference should
+                                                     // have added the casts!
+    return IntegralBinaryExpression(expr->op_type(), lhs, rhs);
+  } else {
+    assert(false);
+  }
 }
 
 llvm::Value *LLVMExpressionVisitor::DispatchUnary(const UnaryExpression *expr) {
@@ -49,11 +66,23 @@ llvm::Value *LLVMExpressionVisitor::DispatchArray(const ArrayExpression *expr) {
 }
 
 llvm::Value *LLVMExpressionVisitor::DispatchCast(const CastExpression *expr) {
-  assert(expr->expr_type()->type_class() == TypeClass::Integral &&
-         expr->cast_type()->type_class() == TypeClass::Integral);
-  return context_->llvm_builder()->CreateSExtOrTrunc(
-      Visit(expr->expression()),
-      LLVMTypeVisitor::Translate(context_, expr->cast_type()));
+  if (expr->expression()->expr_type()->type_class() == TypeClass::Integral &&
+      expr->cast_type()->type_class() == TypeClass::Integral) {
+    return context_->llvm_builder()->CreateSExtOrTrunc(
+        Visit(expr->expression()),
+        LLVMTypeVisitor::Translate(context_, expr->cast_type()));
+  } else if (expr->expression()->expr_type()->type_class() ==
+                 TypeClass::Integral &&
+             expr->cast_type()->type_class() == TypeClass::Bool) {
+    // x != 0
+    llvm::Value *zero = llvm::ConstantInt::get(
+        **context_,
+        llvm::APInt(expr->expression()->expr_type()->As<IntegralType>()->size(),
+                    0));
+    return context_->llvm_builder()->CreateICmpNE(Visit(expr->expression()),
+                                                  zero);
+  }
+  assert(false);
 }
 
 llvm::Value *
@@ -105,6 +134,49 @@ LLVMExpressionVisitor::DispatchCallOp(const CallOpExpression *expr) {
     args.push_back(Visit(arg.get()));
   }
   return context_->llvm_builder()->CreateCall(function, args);
+}
+
+llvm::Value *LLVMExpressionVisitor::IntegralBinaryExpression(
+    BinaryExpressionType op_type, llvm::Value *lhs, llvm::Value *rhs) {
+  switch (op_type) {
+  case BinaryExpressionType::LOGICAL_OR:
+  case BinaryExpressionType::LOGICAL_AND:
+    assert(false); // Not supported for integral types!
+  case BinaryExpressionType::BIT_OR:
+    return context_->llvm_builder()->CreateOr(lhs, rhs);
+  case BinaryExpressionType::BIT_XOR:
+    return context_->llvm_builder()->CreateXor(lhs, rhs);
+  case BinaryExpressionType::BIT_AND:
+    return context_->llvm_builder()->CreateAnd(lhs, rhs);
+  case BinaryExpressionType::EQUALS:
+    return context_->llvm_builder()->CreateICmpEQ(lhs, rhs);
+  case BinaryExpressionType::NOT_EQUALS:
+    return context_->llvm_builder()->CreateICmpNE(lhs, rhs);
+  case BinaryExpressionType::LESS_THAN:
+    return context_->llvm_builder()->CreateICmpSLT(lhs, rhs);
+  case BinaryExpressionType::GREATER_THAN:
+    return context_->llvm_builder()->CreateICmpSGT(lhs, rhs);
+  case BinaryExpressionType::LESS_EQUAL:
+    return context_->llvm_builder()->CreateICmpSLE(lhs, rhs);
+  case BinaryExpressionType::GREATER_EQUAL:
+    return context_->llvm_builder()->CreateICmpSGE(lhs, rhs);
+  case BinaryExpressionType::SHIFT_LEFT:
+    return context_->llvm_builder()->CreateShl(lhs, rhs);
+  case BinaryExpressionType::SHIFT_RIGHT:
+    return context_->llvm_builder()->CreateAShr(lhs, rhs);
+  case BinaryExpressionType::ADD:
+    return context_->llvm_builder()->CreateAdd(lhs, rhs);
+  case BinaryExpressionType::SUBTRACT:
+    return context_->llvm_builder()->CreateSub(lhs, rhs);
+  case BinaryExpressionType::MULTIPLY:
+    return context_->llvm_builder()->CreateMul(lhs, rhs);
+  case BinaryExpressionType::DIVIDE:
+    return context_->llvm_builder()->CreateSDiv(lhs, rhs);
+  case BinaryExpressionType::MOD:
+    return context_->llvm_builder()->CreateSRem(
+        lhs, rhs); // TODO(jlscheerer) maybe support positive mod?
+    break;
+  }
 }
 // `LLVMExpressionVisitor` ==============================================
 } // namespace Cobold

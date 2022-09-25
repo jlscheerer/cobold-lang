@@ -13,6 +13,10 @@ public:
     return visitor.Visit(stmt);
   }
 
+  static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *function,
+                                                  const std::string &var_name,
+                                                  llvm::Type *type);
+
 private:
   LLVMStatementVisitor(CoboldBuildContext *context) : context_(context) {}
 
@@ -26,10 +30,6 @@ private:
   void DispatchDeclaration(const DeclarationStatement *stmt) override;
   void DispatchBreak(const BreakStatement *stmt) override;
   void DispatchContinue(const ContinueStatement *stmt) override;
-
-  static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *function,
-                                                  const std::string &var_name,
-                                                  llvm::Type *type);
 
   CoboldBuildContext *context_;
 };

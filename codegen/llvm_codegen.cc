@@ -33,6 +33,10 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Utils.h"
 
 namespace Cobold {
 // `LLVMCodeGen` ========================================================
@@ -47,9 +51,27 @@ LLVMCodeGen::LLVMCodeGen() {
   auto llvm_module =
       std::make_unique<llvm::Module>("Cobold::Module", *llvm_context);
   auto llvm_builder = std::make_unique<llvm::IRBuilder<>>(*llvm_context);
+
+  // Some optimizations on the functions.
+  // Create a new pass manager attached to it.
+  auto function_pass_manager =
+      std::make_unique<llvm::legacy::FunctionPassManager>(llvm_module.get());
+  // Promote allocas to registers.
+  function_pass_manager->add(llvm::createPromoteMemoryToRegisterPass());
+  // Do simple "peephole" optimizations and bit-twiddling optzns.
+  function_pass_manager->add(llvm::createInstructionCombiningPass());
+  // Reassociate expressions.
+  function_pass_manager->add(llvm::createReassociatePass());
+  // Eliminate Common SubExpressions.
+  function_pass_manager->add(llvm::createGVNPass());
+  // Simplify the control flow graph (deleting unreachable blocks, etc).
+  function_pass_manager->add(llvm::createCFGSimplificationPass());
+  function_pass_manager->doInitialization();
+
   context_ = {.context = std::move(llvm_context),
               .module = std::move(llvm_module),
-              .builder = std::move(llvm_builder)};
+              .builder = std::move(llvm_builder),
+              .function_pass_manager = std::move(function_pass_manager)};
 }
 
 void LLVMCodeGen::GenerateLLVM(const SourceFile &file) {
@@ -93,9 +115,17 @@ void LLVMCodeGen::AddFunctionDeclarations(const SourceFile &file) {
     llvm::FunctionType *function_type =
         llvm::FunctionType::get(return_type, args, false);
 
-    llvm::Function *function =
-        llvm::Function::Create(function_type, llvm::Function::ExternalLinkage,
-                               fn->name(), context_.llvm_module());
+    // llvm::Function::ExternalLinkage for external functions...
+    llvm::Function *function;
+    if (fn->external()) {
+      function =
+          llvm::Function::Create(function_type, llvm::Function::ExternalLinkage,
+                                 fn->name(), context_.llvm_module());
+    } else {
+      function =
+          llvm::Function::Create(function_type, llvm::Function::PrivateLinkage,
+                                 fn->name(), context_.llvm_module());
+    }
     context_.functions[fn->name()] = function;
   }
 }
@@ -104,14 +134,26 @@ void LLVMCodeGen::AddFunctionDefinitions(const SourceFile &file) {
   for (const std::unique_ptr<Function> &fn : file.functions()) {
     if (!fn->external()) {
       llvm::Function *function = context_.functions[fn->name()];
-
       llvm::BasicBlock *basic_block =
           llvm::BasicBlock::Create(*context_, "entry", function);
       context_.llvm_builder()->SetInsertPoint(basic_block);
 
+      int index = 0; // we need to iterate over the declared and llvms args.
+      for (auto &argument : function->args()) {
+        const auto &decl_arg = fn->arguments()[index++];
+        llvm::AllocaInst *alloca = LLVMStatementVisitor::CreateEntryBlockAlloca(
+            function, decl_arg.name,
+            LLVMTypeVisitor::Translate(&context_, decl_arg.type));
+        context_.llvm_builder()->CreateStore(&argument, alloca);
+        // TODO(jlscheerer) Improve this...
+        context_.named_vars[decl_arg.name] = alloca;
+      }
+
       LLVMStatementVisitor::Translate(&context_,
                                       &fn->As<DefinedFunction>()->body());
       llvm::verifyFunction(*function);
+
+      context_.function_pass_manager->run(*function);
     }
   }
 }
@@ -159,6 +201,7 @@ absl::Status LLVMCodeGen::Emit(const std::string &filename) {
   pass.run(*context_.llvm_module());
   out_file.flush();
 
+  context_.llvm_module()->dump();
   return absl::OkStatus();
 }
 
