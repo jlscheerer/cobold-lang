@@ -1,21 +1,24 @@
 #ifndef COBOLD_CODEGEN_LLVM_EXPRESSION_VISITOR
 #define COBOLD_CODEGEN_LLVM_EXPRESSION_VISITOR
 
+#include <string>
+
+#include "codegen/cobold_build_context.h"
 #include "core/expression.h"
 #include "visitor/expression_visitor.h"
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Instructions.h"
 
 namespace Cobold {
-class LLVMExpressionVisitor : private ExpressionVisitor<llvm::Value *> {
+class LLVMExpressionVisitor : private ExpressionVisitor<true, llvm::Value *> {
 public:
-  static llvm::Value *Translate(llvm::LLVMContext *context,
+  static llvm::Value *Translate(CoboldBuildContext *context,
                                 const Expression *expr);
 
 private:
-  LLVMExpressionVisitor(llvm::LLVMContext *context) : context_(context) {}
+  LLVMExpressionVisitor(CoboldBuildContext *context) : context_(context) {}
 
   llvm::Value *DispatchEmpty() override;
   llvm::Value *DispatchTernary(const TernaryExpression *expr) override;
@@ -32,7 +35,7 @@ private:
   llvm::Value *DispatchArrayAccess(const ArrayAccessExpression *expr) override;
   llvm::Value *DispatchCallOp(const CallOpExpression *expr) override;
 
-  llvm::LLVMContext *context_;
+  CoboldBuildContext *context_;
 };
 } // namespace Cobold
 

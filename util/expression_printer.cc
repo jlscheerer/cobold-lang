@@ -1,6 +1,9 @@
 #include "util/expression_printer.h"
+
 #include <sys/_types/_int64_t.h>
 #include <vector>
+
+#include "absl/strings/escaping.h"
 
 namespace Cobold {
 // `ExpressionPrinter` ==================================================
@@ -169,8 +172,10 @@ void ExpressionPrinter::DispatchConstant(const ConstantExpression *expr) {
     Append(std::to_string(*value));
   } else if (const double *value = std::get_if<double>(&data)) {
     Append(std::to_string(*value));
+  } else if (const char *value = std::get_if<char>(&data)) {
+    Append("'", absl::CEscape(std::string(1, *value)), "'");
   } else if (const std::string *value = std::get_if<std::string>(&data)) {
-    Append(*value);
+    Append("\"", absl::CEscape(*value), "\"");
   } else {
     assert(false);
   }

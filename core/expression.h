@@ -9,6 +9,8 @@
 
 #include "absl/status/statusor.h"
 #include "core/type.h"
+#include "parser/source_location.h"
+#include "util/type_traits.h"
 
 namespace Cobold {
 enum class ExpressionType {
@@ -27,7 +29,7 @@ enum class ExpressionType {
 };
 class Expression {
 public:
-  virtual const ExpressionType type() const = 0;
+  Expression(SourceLocation location) : location_(location) {}
 
   template <typename T> const T *As() const {
     static_assert(std::is_base_of_v<Expression, T>,
@@ -36,21 +38,68 @@ public:
     return dynamic_cast<const T *>(this);
   }
 
+  template <typename T> T *As() {
+    static_assert(std::is_base_of_v<Expression, T>,
+                  "Attempting to cast to non-derived class.");
+    // TODO(jlscheerer) check for `nullptr`
+    return dynamic_cast<T *>(this);
+  }
+
+  virtual const ExpressionType type() const = 0;
+  virtual std::unique_ptr<Expression> Clone() const = 0;
+
+  const SourceLocation location() const { return location_; }
+  const Type *expr_type() const { return expr_type_; }
+
   virtual ~Expression() = default;
+
+protected:
+  static std::vector<std::unique_ptr<Expression>>
+  CloneVector(const std::vector<std::unique_ptr<Expression>> &v) {
+    std::vector<std::unique_ptr<Expression>> cloned_args;
+    cloned_args.reserve(v.size());
+    for (int i = 0; i < v.size(); ++i) {
+      cloned_args.push_back(v[i]->Clone());
+    }
+    return cloned_args;
+  }
+
+  SourceLocation location_;
+
+private:
+  void set_expr_type(const Type *type) { expr_type_ = type; }
+
+  const Type *expr_type_;
+
+  friend class TypeInferenceVisitor;
 };
 
 class TernaryExpression : public Expression {
 public:
-  TernaryExpression(std::unique_ptr<Expression> &&condition,
+  TernaryExpression(SourceLocation location,
+                    std::unique_ptr<Expression> &&condition,
                     std::unique_ptr<Expression> &&true_case,
                     std::unique_ptr<Expression> &&false_case)
-      : condition_(std::move(condition)), true_case_(std::move(true_case)),
-        false_case_(std::move(false_case)) {}
+      : Expression(location), condition_(std::move(condition)),
+        true_case_(std::move(true_case)), false_case_(std::move(false_case)) {}
 
   const Expression *condition() const { return condition_.get(); }
+  Expression *mutable_condition() { return condition_.get(); }
+
   const Expression *true_case() const { return true_case_.get(); }
+  Expression *mutable_true_case() { return true_case_.get(); }
+
   const Expression *false_case() const { return false_case_.get(); }
-  virtual const ExpressionType type() const { return ExpressionType::Ternary; }
+  Expression *mutable_false_case() { return false_case_.get(); }
+
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Ternary;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<TernaryExpression>(location_, condition_->Clone(),
+                                               true_case_->Clone(),
+                                               false_case_->Clone());
+  }
 
 private:
   std::unique_ptr<Expression> condition_, true_case_, false_case_;
@@ -79,22 +128,35 @@ enum class BinaryExpressionType {
 
 class BinaryExpression : public Expression {
 public:
-  BinaryExpression(std::unique_ptr<Expression> &&lhs,
+  BinaryExpression(SourceLocation location, std::unique_ptr<Expression> &&lhs,
                    BinaryExpressionType op_type,
                    std::unique_ptr<Expression> &&rhs)
-      : lhs_(std::move(lhs)), rhs_(std::move(rhs)), op_type_(op_type) {}
+      : Expression(location), lhs_(std::move(lhs)), rhs_(std::move(rhs)),
+        op_type_(op_type) {}
 
   const Expression *lhs() const { return lhs_.get(); }
+  Expression *mutable_lhs() { return lhs_.get(); }
+
   const BinaryExpressionType op_type() const { return op_type_; }
+
   const Expression *rhs() const { return rhs_.get(); }
+  Expression *mutable_rhs() { return rhs_.get(); }
 
   static BinaryExpressionType TypeFromString(const std::string &type);
 
-  virtual const ExpressionType type() const { return ExpressionType::Binary; }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Binary;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<BinaryExpression>(location_, lhs_->Clone(),
+                                              op_type_, rhs_->Clone());
+  }
 
 private:
   std::unique_ptr<Expression> lhs_, rhs_;
   BinaryExpressionType op_type_;
+
+  friend class TypeInferenceVisitor;
 };
 
 enum class UnaryExpressionType {
@@ -112,16 +174,23 @@ enum class UnaryExpressionType {
 
 class UnaryExpression : public Expression {
 public:
-  UnaryExpression(UnaryExpressionType op_type,
+  UnaryExpression(SourceLocation location, UnaryExpressionType op_type,
                   std::unique_ptr<Expression> &&expr)
-      : op_type_(op_type), expr_(std::move(expr)) {}
+      : Expression(location), op_type_(op_type), expr_(std::move(expr)) {}
 
   const UnaryExpressionType op_type() const { return op_type_; }
   const Expression *expression() const { return expr_.get(); }
+  Expression *mutable_expression() { return expr_.get(); }
 
   static UnaryExpressionType TypeFromPrefixString(const std::string &type);
 
-  virtual const ExpressionType type() const { return ExpressionType::Unary; }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Unary;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<UnaryExpression>(location_, op_type_,
+                                             expr_->Clone());
+  }
 
 private:
   UnaryExpressionType op_type_;
@@ -130,13 +199,20 @@ private:
 
 class CallExpression : public Expression {
 public:
-  CallExpression(std::string &&identifier,
+  CallExpression(SourceLocation location, std::string identifier,
                  std::vector<std::unique_ptr<Expression>> &&args)
-      : identifier_(std::move(identifier)), args_(std::move(args)) {}
+      : Expression(location), identifier_(std::move(identifier)),
+        args_(std::move(args)) {}
 
   const std::string &identifier() const { return identifier_; }
   const std::vector<std::unique_ptr<Expression>> &args() const { return args_; }
-  virtual const ExpressionType type() const { return ExpressionType::Call; }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Call;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<CallExpression>(location_, identifier_,
+                                            CloneVector(args_));
+  }
 
 private:
   std::string identifier_;
@@ -145,13 +221,22 @@ private:
 
 class RangeExpression : public Expression {
 public:
-  RangeExpression(std::unique_ptr<Expression> &&lhs,
+  RangeExpression(SourceLocation location, std::unique_ptr<Expression> &&lhs,
                   std::unique_ptr<Expression> &&rhs)
-      : lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+      : Expression(location), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
   const Expression *lhs() const { return lhs_.get(); }
+  Expression *mutable_lhs() { return lhs_.get(); }
   const Expression *rhs() const { return rhs_.get(); }
-  virtual const ExpressionType type() const { return ExpressionType::Range; }
+  Expression *mutable_rhs() { return rhs_.get(); }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Range;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<RangeExpression>(location_,
+                                             lhs_ ? lhs_->Clone() : nullptr,
+                                             rhs_ ? rhs_->Clone() : nullptr);
+  }
 
 private:
   std::unique_ptr<Expression> lhs_, rhs_;
@@ -159,13 +244,22 @@ private:
 
 class ArrayExpression : public Expression {
 public:
-  ArrayExpression(std::vector<std::unique_ptr<Expression>> &&elements)
-      : elements_(std::move(elements)) {}
+  ArrayExpression(SourceLocation location,
+                  std::vector<std::unique_ptr<Expression>> &&elements)
+      : Expression(location), elements_(std::move(elements)) {}
 
   const std::vector<std::unique_ptr<Expression>> &elements() const {
     return elements_;
   }
-  virtual const ExpressionType type() const { return ExpressionType::Array; }
+  std::vector<std::unique_ptr<Expression>> &mutable_elements() {
+    return elements_;
+  }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Array;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<ArrayExpression>(location_, CloneVector(elements_));
+  }
 
 private:
   std::vector<std::unique_ptr<Expression>> elements_;
@@ -173,12 +267,20 @@ private:
 
 class CastExpression : public Expression {
 public:
-  CastExpression(const Type *cast_type, std::unique_ptr<Expression> &&expr)
-      : cast_type_(cast_type), expr_(std::move(expr)) {}
+  CastExpression(SourceLocation location, const Type *cast_type,
+                 std::unique_ptr<Expression> &&expr)
+      : Expression(location), cast_type_(cast_type), expr_(std::move(expr)) {}
 
   const Type *cast_type() const { return cast_type_; }
   const Expression *expression() const { return expr_.get(); }
-  virtual const ExpressionType type() const { return ExpressionType::Cast; }
+  Expression *mutable_expression() { return expr_.get(); }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Cast;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<CastExpression>(location_, cast_type_,
+                                            expr_->Clone());
+  }
 
 private:
   const Type *cast_type_;
@@ -189,29 +291,42 @@ struct DashType {};
 
 class ConstantExpression : public Expression {
 public:
-  using data_type = std::variant<DashType, bool, int64_t, double, std::string>;
+  using data_type =
+      std::variant<DashType, bool, int64_t, double, std::string, char>;
 
-  ConstantExpression(data_type data) : data_(data) {}
+  ConstantExpression(SourceLocation location, data_type data)
+      : Expression(location), data_(data) {}
   const data_type &data() const { return data_; }
 
-  static std::unique_ptr<ConstantExpression> True() {
-    return std::make_unique<ConstantExpression>(true);
+  static std::unique_ptr<ConstantExpression> True(SourceLocation location) {
+    return std::make_unique<ConstantExpression>(location, true);
   }
 
-  static std::unique_ptr<ConstantExpression> DashInit() {
-    return std::make_unique<ConstantExpression>(DashType{});
+  static std::unique_ptr<ConstantExpression> DashInit(SourceLocation location) {
+    return std::make_unique<ConstantExpression>(location, DashType{});
   }
 
   static absl::StatusOr<std::unique_ptr<ConstantExpression>>
-  String(const std::string &value);
+  Bool(SourceLocation location, const std::string &value);
 
   static absl::StatusOr<std::unique_ptr<ConstantExpression>>
-  Integer(const std::string &value);
+  Char(SourceLocation location, const std::string &value);
 
   static absl::StatusOr<std::unique_ptr<ConstantExpression>>
-  Floating(const std::string &value);
+  String(SourceLocation location, const std::string &value);
 
-  virtual const ExpressionType type() const { return ExpressionType::Constant; }
+  static absl::StatusOr<std::unique_ptr<ConstantExpression>>
+  Integer(SourceLocation location, const std::string &value);
+
+  static absl::StatusOr<std::unique_ptr<ConstantExpression>>
+  Floating(SourceLocation location, const std::string &value);
+
+  virtual const ExpressionType type() const override {
+    return ExpressionType::Constant;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<ConstantExpression>(location_, data_);
+  }
 
 private:
   data_type data_;
@@ -219,12 +334,15 @@ private:
 
 class IdentifierExpression : public Expression {
 public:
-  IdentifierExpression(const std::string &identifier)
-      : identifier_(identifier) {}
+  IdentifierExpression(SourceLocation location, const std::string &identifier)
+      : Expression(location), identifier_(identifier) {}
 
   const std::string identifier() const { return identifier_; }
-  virtual const ExpressionType type() const {
+  virtual const ExpressionType type() const override {
     return ExpressionType::Identifier;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<IdentifierExpression>(location_, identifier_);
   }
 
 private:
@@ -233,16 +351,22 @@ private:
 
 class MemberAccessExpression : public Expression {
 public:
-  MemberAccessExpression(std::unique_ptr<Expression> &&expr, bool direct,
+  MemberAccessExpression(SourceLocation location,
+                         std::unique_ptr<Expression> &&expr, bool direct,
                          const std::string &identifier)
-      : expr_(std::move(expr)), direct_(direct), identifier_(identifier) {}
+      : Expression(location), expr_(std::move(expr)), direct_(direct),
+        identifier_(identifier) {}
 
   const Expression *expression() const { return expr_.get(); }
   const bool direct() const { return direct_; }
   const std::string &identifier() const { return identifier_; }
 
-  virtual const ExpressionType type() const {
+  virtual const ExpressionType type() const override {
     return ExpressionType::MemberAccess;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<MemberAccessExpression>(location_, expr_->Clone(),
+                                                    direct_, identifier_);
   }
 
 private:
@@ -253,15 +377,23 @@ private:
 
 class ArrayAccessExpression : public Expression {
 public:
-  ArrayAccessExpression(std::unique_ptr<Expression> &&expr,
+  ArrayAccessExpression(SourceLocation location,
+                        std::unique_ptr<Expression> &&expr,
                         std::unique_ptr<Expression> &&index)
-      : expr_(std::move(expr)), index_(std::move(index)) {}
+      : Expression(location), expr_(std::move(expr)), index_(std::move(index)) {
+  }
 
   const Expression *expression() const { return expr_.get(); }
+  Expression *mutable_expression() { return expr_.get(); }
   const Expression *index() const { return index_.get(); }
+  Expression *mutable_index() { return index_.get(); }
 
-  virtual const ExpressionType type() const {
+  virtual const ExpressionType type() const override {
     return ExpressionType::ArrayAccess;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<ArrayAccessExpression>(location_, expr_->Clone(),
+                                                   index_->Clone());
   }
 
 private:
@@ -270,14 +402,21 @@ private:
 
 class CallOpExpression : public Expression {
 public:
-  CallOpExpression(std::unique_ptr<Expression> &&expr,
+  CallOpExpression(SourceLocation location, std::unique_ptr<Expression> &&expr,
                    std::vector<std::unique_ptr<Expression>> &&args)
-      : expr_(std::move(expr)), args_(std::move(args)) {}
+      : Expression(location), expr_(std::move(expr)), args_(std::move(args)) {}
 
   const Expression *expression() const { return expr_.get(); }
   const std::vector<std::unique_ptr<Expression>> &args() const { return args_; }
+  std::vector<std::unique_ptr<Expression>> &mutable_args() { return args_; }
 
-  virtual const ExpressionType type() const { return ExpressionType::CallOp; }
+  virtual const ExpressionType type() const override {
+    return ExpressionType::CallOp;
+  }
+  std::unique_ptr<Expression> Clone() const override {
+    return std::make_unique<CallOpExpression>(location_, expr_->Clone(),
+                                              CloneVector(args_));
+  }
 
 private:
   std::unique_ptr<Expression> expr_;

@@ -36,6 +36,14 @@ public:
     // TODO(jlscheerer) check for `nullptr`
     return dynamic_cast<const T *>(this);
   }
+
+  template <typename T> T *As() {
+    static_assert(std::is_base_of_v<Function, T>,
+                  "Attempting to cast to non-derived class.");
+    // TODO(jlscheerer) check for `nullptr`
+    return dynamic_cast<T *>(this);
+  }
+
   virtual std::string DebugString() const { return GetSignature(); }
 
 protected:
@@ -54,6 +62,7 @@ public:
       : Function(name, arguments, return_type), body_(std::move(body)) {}
   const bool external() const override { return false; }
   const CompoundStatement &body() const { return body_; }
+  CompoundStatement &mutable_body() { return body_; }
 
   std::string DebugString() const override {
     return absl::StrCat(GetSignature(), "\n", StatementPrinter::Print(&body_));

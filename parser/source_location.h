@@ -15,7 +15,25 @@ public:
   const int column() const { return column_; }
   const std::vector<std::string> &buffer() const { return *buffer_; }
 
+  static const SourceLocation Generated() {
+    return SourceLocation(SOURCE_LOCATION_GENERATED);
+  }
+
+  static const SourceLocation Complex() {
+    return SourceLocation(SOURCE_LOCATION_COMPLEX);
+  }
+
 private:
+  // Generated code by the parser/type_checker
+  static constexpr int SOURCE_LOCATION_GENERATED = -1;
+
+  // Represents a complex object without a direct location
+  // TODO(jlscheerer) Use a SourceSpan here instead
+  static constexpr int SOURCE_LOCATION_COMPLEX = -2;
+
+  SourceLocation(int code)
+      : filename_(nullptr), line_(0), column_(code), buffer_(nullptr) {}
+
   const std::string *filename_;
   int line_, column_;
   const std::vector<std::string> *buffer_;

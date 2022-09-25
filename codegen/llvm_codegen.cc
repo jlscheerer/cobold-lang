@@ -43,9 +43,13 @@ absl::Status LLVMCodeGen::Generate(const SourceFile &file) {
 }
 
 LLVMCodeGen::LLVMCodeGen() {
-  context_ = std::make_unique<llvm::LLVMContext>();
-  module_ = std::make_unique<llvm::Module>("Cobold::Module", *context_);
-  builder_ = std::make_unique<llvm::IRBuilder<>>(*context_);
+  auto llvm_context = std::make_unique<llvm::LLVMContext>();
+  auto llvm_module =
+      std::make_unique<llvm::Module>("Cobold::Module", *llvm_context);
+  auto llvm_builder = std::make_unique<llvm::IRBuilder<>>(*llvm_context);
+  context_ = {.context = std::move(llvm_context),
+              .module = std::move(llvm_module),
+              .builder = std::move(llvm_builder)};
 }
 
 void LLVMCodeGen::GenerateLLVM(const SourceFile &file) {
@@ -58,17 +62,19 @@ void LLVMCodeGen::GenerateLLVM(const SourceFile &file) {
           llvm::PointerType::get(llvm::Type::getIntNTy(*context_, 8), 0), 0)};
   llvm::FunctionType *function_type = llvm::FunctionType::get(
       llvm::Type::getIntNTy(*context_, 32), args, false);
-  llvm::Function *function = llvm::Function::Create(
-      function_type, llvm::Function::ExternalLinkage, "main", module_.get());
+  llvm::Function *function =
+      llvm::Function::Create(function_type, llvm::Function::ExternalLinkage,
+                             "main", context_.llvm_module());
 
   llvm::BasicBlock *basic_block =
       llvm::BasicBlock::Create(*context_, "entry", function);
-  builder_->SetInsertPoint(basic_block);
+  context_.llvm_builder()->SetInsertPoint(basic_block);
 
   // Call the user provided "fn Main()"
-  llvm::Value *ret_value = builder_->CreateCall(functions_["Main"], {});
+  llvm::Value *ret_value =
+      context_.llvm_builder()->CreateCall(context_.functions["Main"], {});
 
-  builder_->CreateRet(ret_value);
+  context_.llvm_builder()->CreateRet(ret_value);
   llvm::verifyFunction(*function);
 
   AddFunctionDefinitions(file);
@@ -80,31 +86,30 @@ void LLVMCodeGen::AddFunctionDeclarations(const SourceFile &file) {
     std::vector<llvm::Type *> args;
     args.reserve(fn->arguments().size());
     for (const auto &argument : fn->arguments()) {
-      args.push_back(LLVMTypeVisitor::Translate(context_.get(), argument.type));
+      args.push_back(LLVMTypeVisitor::Translate(&context_, argument.type));
     }
     llvm::Type *return_type =
-        LLVMTypeVisitor::Translate(context_.get(), fn->return_type());
+        LLVMTypeVisitor::Translate(&context_, fn->return_type());
     llvm::FunctionType *function_type =
         llvm::FunctionType::get(return_type, args, false);
 
     llvm::Function *function =
         llvm::Function::Create(function_type, llvm::Function::ExternalLinkage,
-                               fn->name(), module_.get());
-    functions_[fn->name()] = function;
+                               fn->name(), context_.llvm_module());
+    context_.functions[fn->name()] = function;
   }
 }
 
 void LLVMCodeGen::AddFunctionDefinitions(const SourceFile &file) {
   for (const std::unique_ptr<Function> &fn : file.functions()) {
     if (!fn->external()) {
-      llvm::Function *function = functions_[fn->name()];
+      llvm::Function *function = context_.functions[fn->name()];
 
       llvm::BasicBlock *basic_block =
           llvm::BasicBlock::Create(*context_, "entry", function);
-      builder_->SetInsertPoint(basic_block);
+      context_.llvm_builder()->SetInsertPoint(basic_block);
 
-      LLVMStatementVisitor::Translate(context_.get(), module_.get(),
-                                      builder_.get(),
+      LLVMStatementVisitor::Translate(&context_,
                                       &fn->As<DefinedFunction>()->body());
       llvm::verifyFunction(*function);
     }
@@ -120,7 +125,7 @@ absl::Status LLVMCodeGen::Emit(const std::string &filename) {
   llvm::InitializeAllAsmPrinters();
 
   auto target_triple = llvm::sys::getDefaultTargetTriple();
-  module_->setTargetTriple(target_triple);
+  context_.llvm_module()->setTargetTriple(target_triple);
 
   std::string error;
   auto target = llvm::TargetRegistry::lookupTarget(target_triple, error);
@@ -134,7 +139,7 @@ absl::Status LLVMCodeGen::Emit(const std::string &filename) {
   auto rm = llvm::Optional<llvm::Reloc::Model>();
   auto target_machine =
       target->createTargetMachine(target_triple, CPU, features, options, rm);
-  module_->setDataLayout(target_machine->createDataLayout());
+  context_.llvm_module()->setDataLayout(target_machine->createDataLayout());
 
   // TODO(jlscheerer) Add Function Pass Manager for Optimizations
 
@@ -151,7 +156,7 @@ absl::Status LLVMCodeGen::Emit(const std::string &filename) {
     return absl::InternalError("Target cannot emit a file of this type.");
   }
 
-  pass.run(*module_);
+  pass.run(*context_.llvm_module());
   out_file.flush();
 
   return absl::OkStatus();

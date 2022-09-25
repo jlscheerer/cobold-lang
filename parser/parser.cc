@@ -12,6 +12,7 @@
 #include "absl/status/statusor.h"
 #include "core/expression.h"
 #include "core/function.h"
+#include "inference/type_inference_visitor.h"
 #include "source_location.h"
 
 namespace Cobold {
@@ -54,20 +55,20 @@ void ParserErrorListener::reportAmbiguity(antlr4::Parser *recognizer,
                                           const antlrcpp::BitSet &ambigAlts,
                                           antlr4::atn::ATNConfigSet *configs) {
   // TODO(jlscheerer) Switch to SourceSpan once this is supported.
-  assert(false);
+  // assert(false);
 }
 
 void ParserErrorListener::reportAttemptingFullContext(
     antlr4::Parser *recognizer, const antlr4::dfa::DFA &dfa, size_t startIndex,
     size_t stopIndex, const antlrcpp::BitSet &conflictingAlts,
     antlr4::atn::ATNConfigSet *configs) {
-  assert(false);
+  // assert(false);
 }
 
 void ParserErrorListener::reportContextSensitivity(
     antlr4::Parser *recognizer, const antlr4::dfa::DFA &dfa, size_t startIndex,
     size_t stopIndex, size_t prediction, antlr4::atn::ATNConfigSet *configs) {
-  assert(false);
+  // assert(false);
 }
 // `ParserErrorListener` ================================================
 
@@ -83,14 +84,14 @@ absl::StatusOr<SourceFile> Parser::Parse(const std::string &filename) {
   antlr4::ANTLRInputStream input(source_file);
   CoboldLexer lexer(&input);
 
-  lexer.removeErrorListeners();
+  // lexer.removeErrorListeners();
   lexer.addErrorListener(&parser.listener_);
   *parser.error_context_;
 
   antlr4::CommonTokenStream tokens(&lexer);
   CoboldParser _parser(&tokens);
 
-  _parser.removeErrorListeners();
+  // _parser.removeErrorListeners();
   _parser.addErrorListener(&parser.listener_);
 
   CoboldParser::FileContext *file = _parser.file();
@@ -120,6 +121,11 @@ absl::StatusOr<SourceFile> Parser::ParseFile(const std::string &filename,
     file.functions_.push_back(*std::move(parsed_fn));
   }
   *error_context_;
+
+  // TODO(jlscheerer) Do type checking once we loaded the "entire" collection of
+  // modules (i.e., all transitive imports)
+
+  TypeInferenceVisitor::Annotate(file);
   return file;
 }
 
@@ -203,10 +209,26 @@ Parser::ParseType(CoboldParser::TypeSpecifierContext *ctx, bool allow_void) {
       return NilType::Get();
     return InvalidArgument("Type", ctx);
   }
-  if (ctx->I32())
-    return IntegralType::OfSize(32);
-  if (ctx->I64())
-    return IntegralType::OfSize(64);
+
+  if (ctx->IntegralType()) {
+    assert(ctx->IntegralType()->getText().size() > 1 &&
+           ctx->IntegralType()->getText()[0] == 'i');
+    return IntegralType::OfSize(
+        std::atoi(ctx->IntegralType()->getText().substr(1).c_str()));
+  }
+
+  if (ctx->FloatingType()) {
+    assert(ctx->FloatingType()->getText().size() > 1 &&
+           ctx->FloatingType()->getText()[0] == 'f');
+    return FloatingType::OfSize(
+        std::atoi(ctx->FloatingType()->getText().substr(1).c_str()));
+  }
+  if (ctx->NIL())
+    return NilType::Get();
+  if (ctx->BOOL())
+    return BoolType::Get();
+  if (ctx->CHAR())
+    return CharType::Get();
   if (ctx->STRING())
     return StringType::Get();
   absl::StatusOr<const Type *> status_or_type =
@@ -323,7 +345,7 @@ Parser::ParseIfStatementStatement(CoboldParser::IfStatementContext *ctx) {
         {std::move(*status_or_cond), std::move(*status_or_body)});
   }
   branches.push_back(
-      {ConstantExpression::True(),
+      {ConstantExpression::True(SourceLocation::Generated()),
        std::make_unique<CompoundStatement>()}); // always have an "else" branch
   if (has_else) {
     absl::StatusOr<std::unique_ptr<CompoundStatement>> status_or_body =
@@ -396,7 +418,9 @@ Parser::ParseDeclaration(CoboldParser::DeclarationContext *ctx) {
     expression = std::move(*status_or_expr);
   } else {
     // var example: i32; <=> var example: i32 = --;
-    expression = ConstantExpression::DashInit();
+    expression = ConstantExpression::DashInit(
+        ctx->DASH_INIT() ? LocationOf(ctx->DASH_INIT())
+                         : SourceLocation::Generated());
   }
   return std::make_unique<DeclarationStatement>(
       is_const, std::move(identifier), decl_type, std::move(expression));
@@ -434,9 +458,9 @@ absl::StatusOr<std::unique_ptr<Expression>> Parser::ParseConditionalExpression(
       ParseConditionalExpression(ctx->conditionalExpression());
   if (!status_or_false.ok())
     return status_or_false.status();
-  return std::make_unique<TernaryExpression>(std::move(*status_or_cond),
-                                             std::move(*status_or_true),
-                                             std::move(*status_or_false));
+  return std::make_unique<TernaryExpression>(
+      SourceLocation::Complex(), std::move(*status_or_cond),
+      std::move(*status_or_true), std::move(*status_or_false));
 }
 
 absl::StatusOr<std::unique_ptr<Expression>>
@@ -451,8 +475,9 @@ Parser::ParseCallExpression(CoboldParser::CallExpressionContext *ctx) {
       return status_or_arg.status();
     args.push_back(std::move(*status_or_arg));
   }
-  return std::make_unique<CallExpression>(std::move(identifier),
-                                          std::move(args));
+  // TODO(jlscheerer) Maybe we want some more location data here?
+  return std::make_unique<CallExpression>(
+      LocationOf(ctx->Identifier()), std::move(identifier), std::move(args));
 }
 
 absl::StatusOr<std::unique_ptr<Expression>>
@@ -475,7 +500,8 @@ Parser::ParseRangeExpression(CoboldParser::RangeExpressionContext *ctx) {
       return status_or_expr.status();
     right = std::move(*status_or_expr);
   }
-  return std::make_unique<RangeExpression>(std::move(left), std::move(right));
+  return std::make_unique<RangeExpression>(SourceLocation::Complex(),
+                                           std::move(left), std::move(right));
 }
 
 absl::StatusOr<std::unique_ptr<Expression>>
@@ -489,7 +515,8 @@ Parser::ParseArrayExpression(CoboldParser::ArrayExpressionContext *ctx) {
       return status_or_elem.status();
     elements.push_back(std::move(*status_or_elem));
   }
-  return std::make_unique<ArrayExpression>(std::move(elements));
+  return std::make_unique<ArrayExpression>(SourceLocation::Complex(),
+                                           std::move(elements));
 }
 
 #define EXPAND_EXPRESSION(FN_NAME)
@@ -511,7 +538,8 @@ Parser::ParseArrayExpression(CoboldParser::ArrayExpressionContext *ctx) {
       if (!status_or_right.ok())                                               \
         return status_or_right.status();                                       \
       expr = std::make_unique<BinaryExpression>(                               \
-          std::move(expr), BinaryExpression::TypeFromString(SYMBOL),           \
+          SourceLocation::Complex(), std::move(expr),                          \
+          BinaryExpression::TypeFromString(SYMBOL),                            \
           std::move(*status_or_right));                                        \
     }                                                                          \
     return expr;                                                               \
@@ -569,7 +597,9 @@ Parser::ParseCastExpression(CoboldParser::CastExpressionContext *ctx) {
       ParseCastExpression(ctx->castExpression());
   if (!status_or_expr.ok())
     return status_or_expr.status();
-  return std::make_unique<CastExpression>(std::move(*status_or_type),
+  // TODO(jlscheerer) Maybe we want some additional location data here?
+  return std::make_unique<CastExpression>(SourceLocation::Complex(),
+                                          std::move(*status_or_type),
                                           std::move(*status_or_expr));
 }
 
@@ -589,11 +619,13 @@ Parser::ParseUnaryExpression(CoboldParser::UnaryExpressionContext *ctx) {
     if (!status_or_expr.ok())
       return status_or_expr.status();
     expr = std::make_unique<UnaryExpression>(
+        SourceLocation::Complex(),
         UnaryExpression::TypeFromPrefixString(ctx->unaryOperator()->getText()),
         std::move(*status_or_expr));
   }
   for (const auto &op : ctx->prefixOperator()) {
     expr = std::make_unique<UnaryExpression>(
+        SourceLocation::Complex(),
         UnaryExpression::TypeFromPrefixString(op->getText()), std::move(expr));
   }
   return expr;
@@ -620,7 +652,8 @@ Parser::ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx) {
       if (!status_or_index.ok())
         return status_or_index.status();
       expr = std::make_unique<ArrayAccessExpression>(
-          std::move(expr), std::move(*status_or_index));
+          SourceLocation::Complex(), std::move(expr),
+          std::move(*status_or_index));
     } else if (op_type == '(') {
       // call operation a(...)
       std::vector<std::unique_ptr<Expression>> args;
@@ -634,19 +667,21 @@ Parser::ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx) {
           args.push_back(std::move(*status_or_arg));
         }
       }
-      expr =
-          std::make_unique<CallOpExpression>(std::move(expr), std::move(args));
+      expr = std::make_unique<CallOpExpression>(
+          SourceLocation::Complex(), std::move(expr), std::move(args));
     } else if (op_type == '.' || (op_type == '-' && op->Identifier())) {
       // member access a.identifier or a->identifier
       assert(op->Identifier());
       expr = std::make_unique<MemberAccessExpression>(
-          std::move(expr), op_type == '.', op->Identifier()->getText());
+          SourceLocation::Complex(), std::move(expr), op_type == '.',
+          op->Identifier()->getText());
     } else if (op_type == '+' || (op_type == '-' && !op->Identifier())) {
       // post increment/decrement
       UnaryExpressionType post_type = (op_type == '+')
                                           ? UnaryExpressionType::POST_INCREMENT
                                           : UnaryExpressionType::POST_DECREMENT;
-      expr = std::make_unique<UnaryExpression>(post_type, std::move(expr));
+      expr = std::make_unique<UnaryExpression>(SourceLocation::Complex(),
+                                               post_type, std::move(expr));
     } else {
       assert(false);
     }
@@ -656,14 +691,24 @@ Parser::ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx) {
 
 absl::StatusOr<std::unique_ptr<Expression>>
 Parser::ParsePrimaryExpression(CoboldParser::PrimaryExpressionContext *ctx) {
-  if (ctx->StringConstant()) {
-    return ConstantExpression::String(ctx->StringConstant()->getText());
+  if (ctx->BoolConstant()) {
+    return ConstantExpression::Bool(LocationOf(ctx->BoolConstant()),
+                                    ctx->BoolConstant()->getText());
+  } else if (ctx->CharConstant()) {
+    return ConstantExpression::Char(LocationOf(ctx->CharConstant()),
+                                    ctx->CharConstant()->getText());
+  } else if (ctx->StringConstant()) {
+    return ConstantExpression::String(LocationOf(ctx->StringConstant()),
+                                      ctx->StringConstant()->getText());
   } else if (ctx->IntegerConstant()) {
-    return ConstantExpression::Integer(ctx->IntegerConstant()->getText());
+    return ConstantExpression::Integer(LocationOf(ctx->IntegerConstant()),
+                                       ctx->IntegerConstant()->getText());
   } else if (ctx->FloatingConstant()) {
-    return ConstantExpression::Floating(ctx->FloatingConstant()->getText());
+    return ConstantExpression::Floating(LocationOf(ctx->FloatingConstant()),
+                                        ctx->FloatingConstant()->getText());
   }
-  return std::make_unique<IdentifierExpression>(ctx->Identifier()->getText());
+  return std::make_unique<IdentifierExpression>(LocationOf(ctx->Identifier()),
+                                                ctx->Identifier()->getText());
 }
 
 SourceLocation Parser::LocationOf(antlr4::tree::TerminalNode *node) {

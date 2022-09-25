@@ -7,7 +7,7 @@
 #include "visitor/statement_visitor.h"
 
 namespace Cobold {
-class StatementPrinter : private StatementVisitor {
+class StatementPrinter : private StatementVisitor<true> {
 public:
   static std::string Print(const Statement *stmt);
 

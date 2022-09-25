@@ -16,6 +16,8 @@ cc_library(
     hdrs = ["expression.h"],
     deps = [
         ":type",
+        "//util:type_traits",
+        "//parser:source_location",
         "@com_google_absl//absl/status:statusor",
     ],
 )

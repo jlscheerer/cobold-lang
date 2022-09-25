@@ -27,6 +27,7 @@ cc_library(
     deps = [
         ":source_file",
         "//core:function",
+        "//inference:type_inference_visitor",
         "//reporting:error_context",
         "//parser/internal:options",
         "//parser/internal:cobold_cc_parser",

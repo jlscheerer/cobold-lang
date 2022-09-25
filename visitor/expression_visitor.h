@@ -2,55 +2,69 @@
 #define COBOLD_VISITOR_EXPRESSION_VISITOR
 
 #include "core/expression.h"
+#include "util/type_traits.h"
 
 namespace Cobold {
-template <typename RetType = void> class ExpressionVisitor {
+template <bool ConstVisit = true, typename RetType = void>
+class ExpressionVisitor {
 public:
-  RetType Visit(const Expression *expr) {
+  RetType Visit(enable_const_if_t<ConstVisit, Expression> *expr) {
     if (expr == nullptr)
       return DispatchEmpty();
     switch (expr->type()) {
     case ExpressionType::Ternary:
-      return DispatchTernary(expr->As<TernaryExpression>());
+      return DispatchTernary(expr->template As<TernaryExpression>());
     case ExpressionType::Binary:
-      return DispatchBinary(expr->As<BinaryExpression>());
+      return DispatchBinary(expr->template As<BinaryExpression>());
     case ExpressionType::Unary:
-      return DispatchUnary(expr->As<UnaryExpression>());
+      return DispatchUnary(expr->template As<UnaryExpression>());
     case ExpressionType::Call:
-      return DispatchCall(expr->As<CallExpression>());
+      return DispatchCall(expr->template As<CallExpression>());
     case ExpressionType::Range:
-      return DispatchRange(expr->As<RangeExpression>());
+      return DispatchRange(expr->template As<RangeExpression>());
     case ExpressionType::Array:
-      return DispatchArray(expr->As<ArrayExpression>());
+      return DispatchArray(expr->template As<ArrayExpression>());
     case ExpressionType::Cast:
-      return DispatchCast(expr->As<CastExpression>());
+      return DispatchCast(expr->template As<CastExpression>());
     case ExpressionType::Constant:
-      return DispatchConstant(expr->As<ConstantExpression>());
+      return DispatchConstant(expr->template As<ConstantExpression>());
     case ExpressionType::Identifier:
-      return DispatchIdentifier(expr->As<IdentifierExpression>());
+      return DispatchIdentifier(expr->template As<IdentifierExpression>());
     case ExpressionType::MemberAccess:
-      return DispatchMemberAccess(expr->As<MemberAccessExpression>());
+      return DispatchMemberAccess(expr->template As<MemberAccessExpression>());
     case ExpressionType::ArrayAccess:
-      return DispatchArrayAccess(expr->As<ArrayAccessExpression>());
+      return DispatchArrayAccess(expr->template As<ArrayAccessExpression>());
     case ExpressionType::CallOp:
-      return DispatchCallOp(expr->As<CallOpExpression>());
+      return DispatchCallOp(expr->template As<CallOpExpression>());
     }
   }
 
 protected:
   virtual RetType DispatchEmpty() { assert(false); };
-  virtual RetType DispatchTernary(const TernaryExpression *expr) = 0;
-  virtual RetType DispatchBinary(const BinaryExpression *expr) = 0;
-  virtual RetType DispatchUnary(const UnaryExpression *expr) = 0;
-  virtual RetType DispatchCall(const CallExpression *expr) = 0;
-  virtual RetType DispatchRange(const RangeExpression *expr) = 0;
-  virtual RetType DispatchArray(const ArrayExpression *expr) = 0;
-  virtual RetType DispatchCast(const CastExpression *expr) = 0;
-  virtual RetType DispatchConstant(const ConstantExpression *expr) = 0;
-  virtual RetType DispatchIdentifier(const IdentifierExpression *expr) = 0;
-  virtual RetType DispatchMemberAccess(const MemberAccessExpression *expr) = 0;
-  virtual RetType DispatchArrayAccess(const ArrayAccessExpression *expr) = 0;
-  virtual RetType DispatchCallOp(const CallOpExpression *expr) = 0;
+  virtual RetType
+  DispatchTernary(enable_const_if_t<ConstVisit, TernaryExpression> *expr) = 0;
+  virtual RetType
+  DispatchBinary(enable_const_if_t<ConstVisit, BinaryExpression> *expr) = 0;
+  virtual RetType
+  DispatchUnary(enable_const_if_t<ConstVisit, UnaryExpression> *expr) = 0;
+  virtual RetType
+  DispatchCall(enable_const_if_t<ConstVisit, CallExpression> *expr) = 0;
+  virtual RetType
+  DispatchRange(enable_const_if_t<ConstVisit, RangeExpression> *expr) = 0;
+  virtual RetType
+  DispatchArray(enable_const_if_t<ConstVisit, ArrayExpression> *expr) = 0;
+  virtual RetType
+  DispatchCast(enable_const_if_t<ConstVisit, CastExpression> *expr) = 0;
+  virtual RetType
+  DispatchConstant(enable_const_if_t<ConstVisit, ConstantExpression> *expr) = 0;
+  virtual RetType DispatchIdentifier(
+      enable_const_if_t<ConstVisit, IdentifierExpression> *expr) = 0;
+  virtual RetType DispatchMemberAccess(
+      enable_const_if_t<ConstVisit, MemberAccessExpression> *expr) = 0;
+  virtual RetType DispatchArrayAccess(
+      enable_const_if_t<ConstVisit, ArrayAccessExpression> *expr) = 0;
+  virtual RetType
+  DispatchCallOp(enable_const_if_t<ConstVisit, CallOpExpression> *expr) = 0;
 };
 } // namespace Cobold
 

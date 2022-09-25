@@ -3,23 +3,18 @@
 
 #include "visitor/statement_visitor.h"
 
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
+#include "cobold_build_context.h"
 
 namespace Cobold {
-class LLVMStatementVisitor : private StatementVisitor {
+class LLVMStatementVisitor : private StatementVisitor<true> {
 public:
-  static void Translate(llvm::LLVMContext *context, llvm::Module *module,
-                        llvm::IRBuilder<> *builder, const Statement *stmt) {
-    LLVMStatementVisitor visitor(context, module, builder);
+  static void Translate(CoboldBuildContext *context, const Statement *stmt) {
+    LLVMStatementVisitor visitor(context);
     return visitor.Visit(stmt);
   }
 
 private:
-  LLVMStatementVisitor(llvm::LLVMContext *context, llvm::Module *module,
-                       llvm::IRBuilder<> *builder)
-      : context_(context), module_(module), builder_(builder) {}
+  LLVMStatementVisitor(CoboldBuildContext *context) : context_(context) {}
 
   void DispatchReturn(const ReturnStatement *stmt) override;
   void DispatchAssignment(const AssignmentStatement *stmt) override;
@@ -30,9 +25,11 @@ private:
   void DispatchWhile(const WhileStatement *stmt) override;
   void DispatchDeclaration(const DeclarationStatement *stmt) override;
 
-  llvm::LLVMContext *context_;
-  llvm::Module *module_;
-  llvm::IRBuilder<> *builder_;
+  static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *function,
+                                                  const std::string &var_name,
+                                                  llvm::Type *type);
+
+  CoboldBuildContext *context_;
 };
 } // namespace Cobold
 

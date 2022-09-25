@@ -32,6 +32,13 @@ public:
     return dynamic_cast<const T *>(this);
   }
 
+  template <typename T> T *As() {
+    static_assert(std::is_base_of_v<Statement, T>,
+                  "Attempting to cast to non-derived class.");
+    // TODO(jlscheerer) check for `nullptr`
+    return dynamic_cast<T *>(this);
+  }
+
   virtual ~Statement() = default;
 };
 
@@ -63,8 +70,12 @@ public:
       : lhs_(std::move(lhs)), rhs_(std::move(rhs)), assgn_type_(assign_type) {}
 
   const Expression *lhs() const { return lhs_.get(); }
+  Expression *mutable_lhs() { return lhs_.get(); }
+
   const AssignmentType assgn_type() const { return assgn_type_; }
+
   const Expression *rhs() const { return rhs_.get(); }
+  Expression *mutable_rhs() { return rhs_.get(); }
 
   StatementType type() const { return StatementType::Assignment; }
 
@@ -75,6 +86,8 @@ private:
 
   std::unique_ptr<Expression> lhs_, rhs_;
   AssignmentType assgn_type_;
+
+  friend class TypeInferenceVisitor;
 };
 
 class CompoundStatement : public Statement {
@@ -99,10 +112,14 @@ public:
       : expression_(std::move(expression)) {}
 
   const Expression *expression() const { return expression_.get(); }
+  Expression *mutable_expression() { return expression_.get(); }
+
   StatementType type() const { return StatementType::Expression; }
 
 private:
   std::unique_ptr<Expression> expression_;
+
+  friend class TypeInferenceVisitor;
 };
 
 class ReturnStatement : public ExpressionStatement {
@@ -137,6 +154,8 @@ public:
       : condition_(std::move(condition)), body_(std::move(body)) {}
 
   const Expression *condition() const { return condition_.get(); }
+  Expression *mutable_condition() { return condition_.get(); }
+
   const std::unique_ptr<CompoundStatement> &body() const { return body_; }
   StatementType type() const { return StatementType::While; }
 
@@ -156,15 +175,21 @@ public:
   const bool is_const() const { return is_const_; }
   const std::string &identifier() const { return identifier_; }
   const Type *decl_type() const { return decl_type_; }
+
   const Expression *expression() const { return expression_.get(); }
+  Expression *mutable_expression() { return expression_.get(); }
 
   StatementType type() const { return StatementType::Declaration; }
 
 private:
+  void infer_type(const Type *decl_type) { decl_type_ = decl_type; }
+
   bool is_const_; // "var" -> !is_const, "let" -> is_const
   std::string identifier_;
   const Type *decl_type_;
   std::unique_ptr<Expression> expression_;
+
+  friend class TypeInferenceVisitor;
 };
 
 class ForStatement : public DeclarationStatement {
@@ -177,6 +202,7 @@ public:
         body_(std::move(body)) {}
 
   const std::unique_ptr<CompoundStatement> &body() const { return body_; }
+
   StatementType type() const { return StatementType::For; }
 
 private:

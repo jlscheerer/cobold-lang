@@ -14,6 +14,7 @@ cc_library(
     srcs = ["expression_visitor.cc"],
     hdrs = ["expression_visitor.h"],
     deps = [
+        "//util:type_traits",
         "//core:expression"
     ],
 )
@@ -23,6 +24,7 @@ cc_library(
     srcs = ["statement_visitor.cc"],
     hdrs = ["statement_visitor.h"],
     deps = [
+        "//util:type_traits",
         "//core:statement"
     ],
 )

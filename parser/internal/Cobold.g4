@@ -44,7 +44,9 @@ declaration:
 	)? ';';
 
 primaryExpression:
-	StringConstant
+	BoolConstant
+	| CharConstant
+	| StringConstant
 	| IntegerConstant
 	| FloatingConstant
 	| Identifier;
@@ -135,13 +137,35 @@ WHILE: 'while';
 IN: 'in';
 VAR: 'var';
 LET: 'let';
-I32: 'i32';
-I64: 'i64';
-STRING: 'string';
+
 POINTER: '*';
 LBRACKET: '[';
 RBRACKET: ']';
 DASH_INIT: '--';
+
+// Types
+STRING: 'string';
+BOOL: 'bool';
+CHAR: 'char';
+NIL: 'nil';
+
+// Integral Types
+IntegralType: I8 | I16 | I32 | I64 | I128 | I256;
+I8: 'i8';
+I16: 'i16';
+I32: 'i32';
+I64: 'i64';
+I128: 'i128';
+I256: 'i256';
+
+// Floating Types
+FloatingType: F8 | F16 | F32 | F64 | F128 | F256;
+F8: 'f8';
+F16: 'f16';
+F32: 'f32';
+F64: 'f64';
+F128: 'f128';
+F256: 'f256';
 
 assignmentStatement:
 	expression assignmentOperator expression ';';
@@ -159,13 +183,18 @@ assignmentOperator:
 	| '|=';
 
 typeSpecifier:
-	(I32 | I64 | STRING)
+	(IntegralType | FloatingType | STRING | CHAR | BOOL | NIL)
 	| LBRACKET typeSpecifier RBRACKET
 	| typeSpecifier POINTER;
+
+BoolConstant: 'true' | 'false';
 
 Identifier: Nondigit ( Nondigit | Digit)*;
 fragment Nondigit: [a-zA-Z_];
 fragment Digit: [0-9];
+
+CharConstant: CHAR_LITERAL;
+CHAR_LITERAL: ('\'' (~[\r\n'] | SimpleEscapeSequence)* '\'');
 
 StringConstant: STRING_LITERAL;
 STRING_LITERAL: ('"' (~[\r\n"] | SimpleEscapeSequence)* '"');

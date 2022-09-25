@@ -3,13 +3,10 @@
 
 #include <memory>
 
+#include "codegen/cobold_build_context.h"
 #include "parser/source_file.h"
 
 #include "absl/status/status.h"
-
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
 
 namespace Cobold {
 class LLVMCodeGen {
@@ -25,11 +22,7 @@ private:
   absl::Status Emit(const std::string &filename);
   absl::Status Build(const std::string &filename);
 
-  std::unique_ptr<llvm::LLVMContext> context_;
-  std::unique_ptr<llvm::Module> module_;
-  std::unique_ptr<llvm::IRBuilder<>> builder_;
-
-  absl::flat_hash_map<std::string, llvm::Function *> functions_;
+  CoboldBuildContext context_;
 };
 } // namespace Cobold
 

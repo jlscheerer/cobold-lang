@@ -1,7 +1,13 @@
-import "std/io";
+import "io";
 
 fn Print(num: i32) #extern("__std_io_Print");
 
+fn iadd_32(x: i32, y: i32) -> i64 #extern("__iadd_32");
+
 fn Main() -> i32 {
-    return 72;
+    var a: i32 = 12;
+    for x in [1..2] {
+        Print(a);
+    }
+    return 1;
 }
