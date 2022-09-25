@@ -11,7 +11,7 @@ llvm::Type *LLVMTypeVisitor::DispatchNil(const NilType *type) {
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchBool(const BoolType *type) {
-  assert(false);
+  return llvm::Type::getIntNTy(**context_, 1);
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchChar(const CharType *type) {

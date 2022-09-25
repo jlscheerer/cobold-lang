@@ -64,6 +64,10 @@ LLVMExpressionVisitor::DispatchConstant(const ConstantExpression *expr) {
     return llvm::ConstantInt::get(
         **context_, llvm::APInt(expr->expr_type()->As<IntegralType>()->size(),
                                 std::get<int64_t>(expr->data()), true));
+  } else if (std::holds_alternative<bool>(expr->data())) {
+    assert(expr->expr_type()->type_class() == TypeClass::Bool);
+    return llvm::ConstantInt::get(
+        **context_, llvm::APInt(1, std::get<bool>(expr->data()), true));
   }
   assert(false);
 }
@@ -73,9 +77,9 @@ LLVMExpressionVisitor::DispatchIdentifier(const IdentifierExpression *expr) {
   assert(context_->named_vars.find(expr->identifier()) !=
          context_->named_vars.end());
   llvm::AllocaInst *var = context_->named_vars[expr->identifier()];
-  // TODO(jlscheerer) We need to know the type here!
   return context_->llvm_builder()->CreateLoad(
-      llvm::Type::getIntNTy(**context_, 32), var, expr->identifier().c_str());
+      LLVMTypeVisitor::Translate(context_, expr->expr_type()), var,
+      expr->identifier().c_str());
 }
 
 llvm::Value *LLVMExpressionVisitor::DispatchMemberAccess(
