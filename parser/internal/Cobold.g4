@@ -18,7 +18,8 @@ statement:
 	| compoundStatement
 	| expressionStatement
 	| ifStatement
-	| iterationStatement;
+	| iterationStatement
+	| loopFlowInstruction;
 
 returnStatement: RETURN expression ';';
 expressionStatement: expression ';';
@@ -27,6 +28,8 @@ ifStatement:
 	IF (expression | '(' expression ')') compoundStatement (
 		ELSE IF (expression | '(' expression ')') compoundStatement
 	)* (ELSE compoundStatement)?;
+
+loopFlowInstruction: (BREAK | CONTINUE) ';';
 
 iterationStatement: forStatement | whileStatement;
 forStatement:
@@ -132,8 +135,12 @@ FUNCTION: 'fn';
 RETURN: 'return';
 IF: 'if';
 ELSE: 'else';
+
 FOR: 'for';
 WHILE: 'while';
+BREAK: 'break';
+CONTINUE: 'continue';
+
 IN: 'in';
 VAR: 'var';
 LET: 'let';

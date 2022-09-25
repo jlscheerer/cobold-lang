@@ -6,9 +6,10 @@ fn iadd_32(x: i32, y: i32) -> i64 #extern("__iadd_32");
 
 fn Main() -> i32 {
     var a = true;
-    while a {
+    while true {
         Print((i32) a);
         a = false;
+        break;
     }
     return 1;
 }

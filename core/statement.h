@@ -18,7 +18,9 @@ enum class StatementType {
   If,
   For,
   While,
-  Declaration
+  Declaration,
+  Break,
+  Continue
 };
 
 class Statement {
@@ -207,6 +209,14 @@ public:
 
 private:
   std::unique_ptr<CompoundStatement> body_;
+};
+
+class BreakStatement : public Statement {
+  StatementType type() const { return StatementType::Break; }
+};
+
+class ContinueStatement : public Statement {
+  StatementType type() const { return StatementType::Break; }
 };
 } // namespace Cobold
 

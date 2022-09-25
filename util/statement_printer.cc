@@ -67,6 +67,14 @@ void StatementPrinter::DispatchDeclaration(const DeclarationStatement *stmt) {
                  " = ", ExpressionPrinter::Print(stmt->expression()), ";");
 }
 
+void StatementPrinter::DispatchBreak(const BreakStatement *stmt) {
+  AppendIndented("break;");
+}
+
+void StatementPrinter::DispatchContinue(const ContinueStatement *stmt) {
+  AppendIndented("continue;");
+}
+
 void StatementPrinter::AppendLineIndented(const std::string &line) {
   buffer_ = absl::StrCat(buffer_, std::string(indent_, ' '), line, "\n");
 }

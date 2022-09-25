@@ -329,6 +329,14 @@ void TypeInferenceVisitor::DispatchDeclaration(DeclarationStatement *stmt) {
                                 stmt->expression()->expr_type()));
 }
 
+void TypeInferenceVisitor::DispatchBreak(BreakStatement *stmt) {
+  // Nothing to do here...
+}
+
+void TypeInferenceVisitor::DispatchContinue(ContinueStatement *stmt) {
+  // Nothing to do here...
+}
+
 // Expressions
 void TypeInferenceVisitor::DispatchEmpty() {}
 

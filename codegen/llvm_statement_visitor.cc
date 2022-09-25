@@ -196,6 +196,14 @@ void LLVMStatementVisitor::DispatchDeclaration(
   context_->named_vars[stmt->identifier()] = alloca;
 }
 
+void LLVMStatementVisitor::DispatchBreak(const BreakStatement *stmt) {
+  assert(false);
+}
+
+void LLVMStatementVisitor::DispatchContinue(const ContinueStatement *stmt) {
+  assert(false);
+}
+
 llvm::AllocaInst *LLVMStatementVisitor::CreateEntryBlockAlloca(
     llvm::Function *function, const std::string &var_name, llvm::Type *type) {
   llvm::IRBuilder<> tmp_builder(&function->getEntryBlock(),

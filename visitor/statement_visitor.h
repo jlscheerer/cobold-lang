@@ -29,6 +29,10 @@ public:
       return DispatchWhile(stmt->template As<WhileStatement>());
     case StatementType::Declaration:
       return DispatchDeclaration(stmt->template As<DeclarationStatement>());
+    case StatementType::Break:
+      return DispatchBreak(stmt->template As<BreakStatement>());
+    case StatementType::Continue:
+      return DispatchContinue(stmt->template As<ContinueStatement>());
     }
   }
 
@@ -49,6 +53,10 @@ protected:
   DispatchWhile(enable_const_if_t<ConstVisit, WhileStatement> *stmt) {}
   virtual void DispatchDeclaration(
       enable_const_if_t<ConstVisit, DeclarationStatement> *stmt) {}
+  virtual void
+  DispatchBreak(enable_const_if_t<ConstVisit, BreakStatement> *stmt){};
+  virtual void
+  DispatchContinue(enable_const_if_t<ConstVisit, ContinueStatement> *stmt){};
 };
 } // namespace Cobold
 

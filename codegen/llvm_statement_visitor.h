@@ -24,6 +24,8 @@ private:
   void DispatchFor(const ForStatement *stmt) override;
   void DispatchWhile(const WhileStatement *stmt) override;
   void DispatchDeclaration(const DeclarationStatement *stmt) override;
+  void DispatchBreak(const BreakStatement *stmt) override;
+  void DispatchContinue(const ContinueStatement *stmt) override;
 
   static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *function,
                                                   const std::string &var_name,

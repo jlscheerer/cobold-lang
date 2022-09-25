@@ -270,6 +270,13 @@ Parser::ParseStatement(CoboldParser::StatementContext *ctx) {
     if (ctx->iterationStatement()->whileStatement())
       return ParseWhileStatement(ctx->iterationStatement()->whileStatement());
   }
+  if (ctx->loopFlowInstruction()) {
+    if (ctx->loopFlowInstruction()->BREAK()) {
+      return std::make_unique<BreakStatement>();
+    } else if (ctx->loopFlowInstruction()->CONTINUE()) {
+      return std::make_unique<ContinueStatement>();
+    }
+  }
   return InvalidArgument("Statement", ctx);
 }
 

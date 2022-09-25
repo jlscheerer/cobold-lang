@@ -20,6 +20,8 @@ private:
   void DispatchFor(const ForStatement *stmt) override;
   void DispatchWhile(const WhileStatement *stmt) override;
   void DispatchDeclaration(const DeclarationStatement *stmt) override;
+  void DispatchBreak(const BreakStatement *stmt) override;
+  void DispatchContinue(const ContinueStatement *stmt) override;
   void AppendLineIndented(const std::string &line);
   template <typename... Args> void AppendIndented(Args &&...args) {
     return AppendLineIndented(absl::StrCat(args...));

@@ -35,6 +35,8 @@ private:
   void DispatchFor(ForStatement *stmt) override;
   void DispatchWhile(WhileStatement *stmt) override;
   void DispatchDeclaration(DeclarationStatement *stmt) override;
+  void DispatchBreak(BreakStatement *stmt) override;
+  void DispatchContinue(ContinueStatement *stmt) override;
 
   // Expressions
   void DispatchEmpty() override;
