@@ -688,6 +688,8 @@ Parser::ParseSizeofExpression(CoboldParser::SizeOfExpressionContext *ctx) {
 
 absl::StatusOr<std::unique_ptr<Expression>>
 Parser::ParsePostfixExpression(CoboldParser::PostfixExpressionContext *ctx) {
+  if (ctx->expression())
+    return ParseExpression(ctx->expression());
   absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
       ParsePrimaryExpression(ctx->primaryExpression());
   if (!status_or_expr.ok())

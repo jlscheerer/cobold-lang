@@ -23,6 +23,10 @@ fn Main() -> i32 {
     var a = sizeof(i32);
     var b = malloc(i32)(2);
 
+    >>b = 17;
+
+    Print((i32)(>>b * a));
+
     free((nil*) b);
     
     return 1;

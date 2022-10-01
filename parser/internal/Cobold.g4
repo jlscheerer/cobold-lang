@@ -54,7 +54,9 @@ primaryExpression:
 	| FloatingConstant
 	| Identifier;
 
-postfixExpression: primaryExpression postfixOperations?;
+postfixExpression:
+	'(' expression ')'
+	| primaryExpression postfixOperations?;
 postfixOperations: (
 		'[' expression ']'
 		| '(' argumentExpressionList? ')'
