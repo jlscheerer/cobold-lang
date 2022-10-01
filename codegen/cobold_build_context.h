@@ -7,6 +7,7 @@
 
 #include "absl/container/flat_hash_map.h"
 
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -37,6 +38,8 @@ struct CoboldBuildContext {
   absl::flat_hash_map<std::string, llvm::AllocaInst *> named_vars;
 
   std::stack<LoopInstructionBlock> loop_instruction_stack;
+
+  llvm::Constant *AddStringConstant(std::string &value);
 };
 } // namespace Cobold
 

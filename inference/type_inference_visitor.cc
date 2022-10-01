@@ -316,6 +316,7 @@ void TypeInferenceVisitor::DispatchDeclaration(DeclarationStatement *stmt) {
   if (stmt->decl_type() == nullptr) {
     // TODO(jlscheerer) We should not be getting nil, etc.!
     stmt->infer_type(stmt->expression()->expr_type());
+    std::cout << stmt->decl_type()->DebugString() << std::endl;
   } else if (stmt->decl_type() != stmt->expression()->expr_type()) {
     if (stmt->decl_type()->type_class() == TypeClass::Array &&
         stmt->expression()->expr_type()->type_class() == TypeClass::Array &&

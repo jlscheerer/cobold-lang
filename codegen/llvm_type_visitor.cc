@@ -15,7 +15,7 @@ llvm::Type *LLVMTypeVisitor::DispatchBool(const BoolType *type) {
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchChar(const CharType *type) {
-  assert(false);
+  return llvm::Type::getIntNTy(**context_, 8);
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchIntegral(const IntegralType *type) {
@@ -27,7 +27,7 @@ llvm::Type *LLVMTypeVisitor::DispatchFloating(const FloatingType *type) {
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchString(const StringType *type) {
-  assert(false);
+  return llvm::StructType::getTypeByName(**context_, "string");
 }
 
 llvm::Type *LLVMTypeVisitor::DispatchArray(const ArrayType *type) {

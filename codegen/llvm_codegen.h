@@ -15,6 +15,8 @@ public:
 
 private:
   LLVMCodeGen();
+  void CreateBuiltinTypes();
+
   void GenerateLLVM(const SourceFile &file);
   void AddFunctionDeclarations(const SourceFile &file);
   void AddFunctionDefinitions(const SourceFile &file);

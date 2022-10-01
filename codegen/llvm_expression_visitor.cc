@@ -86,6 +86,11 @@ llvm::Value *LLVMExpressionVisitor::DispatchCast(const CastExpression *expr) {
                     0));
     return context_->llvm_builder()->CreateICmpNE(Visit(expr->expression()),
                                                   zero);
+  } else if (expr->expression()->expr_type()->type_class() == TypeClass::Char &&
+             expr->cast_type()->type_class() == TypeClass::Integral) {
+    return context_->llvm_builder()->CreateSExtOrTrunc(
+        Visit(expr->expression()),
+        LLVMTypeVisitor::Translate(context_, expr->cast_type()));
   } else if (expr->expression()->expr_type()->type_class() ==
                  TypeClass::Pointer &&
              expr->cast_type()->type_class() == TypeClass::Pointer) {
@@ -109,6 +114,19 @@ LLVMExpressionVisitor::DispatchConstant(const ConstantExpression *expr) {
     assert(expr->expr_type()->type_class() == TypeClass::Bool);
     return llvm::ConstantInt::get(
         **context_, llvm::APInt(1, std::get<bool>(expr->data()), true));
+  } else if (std::holds_alternative<char>(expr->data())) {
+    assert(expr->expr_type()->type_class() == TypeClass::Char);
+    return llvm::ConstantInt::get(
+        **context_, llvm::APInt(8, std::get<char>(expr->data()), true));
+  } else if (std::holds_alternative<std::string>(expr->data())) {
+    assert(expr->expr_type()->type_class() == TypeClass::String);
+    std::string str = std::get<std::string>(expr->data());
+    llvm::StructType *str_type =
+        llvm::StructType::getTypeByName(**context_, "string");
+    llvm::Constant *size =
+        llvm::ConstantInt::get(**context_, llvm::APInt(64, str.size(), true));
+    llvm::Constant *data = context_->AddStringConstant(str);
+    return llvm::ConstantStruct::get(str_type, {size, data});
   }
   assert(false);
 }
@@ -130,6 +148,18 @@ llvm::Value *LLVMExpressionVisitor::DispatchMemberAccess(
 
 llvm::Value *
 LLVMExpressionVisitor::DispatchArrayAccess(const ArrayAccessExpression *expr) {
+  llvm::Value *expression = Visit(expr->expression());
+  llvm::Value *index = Visit(expr->index());
+  if (expr->expression()->expr_type()->type_class() == TypeClass::String) {
+    llvm::Value *data = context_->llvm_builder()->CreateExtractValue(
+        expression, /*member_index=*/1, "string::data");
+    llvm::Type *char_ty = llvm::Type::getIntNTy(**context_, 8);
+    llvm::Type *char_ptr = llvm::PointerType::get(char_ty, 0);
+    llvm::Value *char_at_index =
+        context_->llvm_builder()->CreateGEP(char_ptr, data, {index});
+    return context_->llvm_builder()->CreateLoad(char_ty, char_at_index,
+                                                ">>string::data");
+  }
   assert(false);
 }
 

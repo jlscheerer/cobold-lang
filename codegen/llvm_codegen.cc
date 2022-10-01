@@ -72,6 +72,17 @@ LLVMCodeGen::LLVMCodeGen() {
               .module = std::move(llvm_module),
               .builder = std::move(llvm_builder),
               .function_pass_manager = std::move(function_pass_manager)};
+
+  CreateBuiltinTypes();
+}
+
+void LLVMCodeGen::CreateBuiltinTypes() {
+  // size: i64 + data: char*
+  llvm::StructType::create(
+      *context_,
+      {llvm::Type::getIntNTy(*context_, 64),
+       llvm::PointerType::get(llvm::Type::getIntNTy(*context_, 8), 0)},
+      "string", /*isPacked=*/false);
 }
 
 void LLVMCodeGen::GenerateLLVM(const SourceFile &file) {
