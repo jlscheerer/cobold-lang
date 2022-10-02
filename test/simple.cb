@@ -1,6 +1,9 @@
 import "io";
 
+fn PrintStr(obj: string) #extern("__print_str");
+
 fn Main() -> i32 {
-    var a: i32 = --;
-    return (i32)a;
+    var a: string = --;
+    PrintStr(a);
+    return (i32)0;
 }

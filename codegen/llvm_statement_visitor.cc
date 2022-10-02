@@ -215,8 +215,16 @@ void LLVMStatementVisitor::DispatchDeclaration(
   assert(context_->named_vars.find(stmt->identifier()) ==
          context_->named_vars.end());
 
-  // In general we don't need to do initialization for --.
-  if (stmt->expression()->expr_type()->type_class() != TypeClass::Dash) {
+  if (stmt->expression()->expr_type()->type_class() == TypeClass::Dash) {
+    // we only need to do initialization for "complex" types here.
+    // TODO(jlscheerer) move these semantics into the type.
+    if (stmt->decl_type()->type_class() == TypeClass::String) {
+      context_->llvm_builder()->CreateStore(
+          llvm::ConstantAggregateZero::get(
+              LLVMTypeVisitor::Translate(context_, stmt->decl_type())),
+          alloca);
+    }
+  } else {
     context_->llvm_builder()->CreateStore(
         LLVMExpressionVisitor::Translate(context_, stmt->expression()), alloca);
   }

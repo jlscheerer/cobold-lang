@@ -10,6 +10,7 @@ struct __lib_string {
 void Print(int x) { printf("%d\n", x); }
 
 void PrintStr(struct __lib_string str) {
+  printf("%d\n", (int)str.size);
   printf("%.*s", (int)str.size, str.data);
 }
 
