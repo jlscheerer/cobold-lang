@@ -10,6 +10,10 @@ llvm::Type *LLVMTypeVisitor::DispatchNil(const NilType *type) {
   return llvm::Type::getVoidTy(**context_);
 }
 
+llvm::Type *LLVMTypeVisitor::DispatchDash(const DashType *type) {
+  assert(false); // we should never be emitting DashType!
+}
+
 llvm::Type *LLVMTypeVisitor::DispatchBool(const BoolType *type) {
   return llvm::Type::getIntNTy(**context_, 1);
 }

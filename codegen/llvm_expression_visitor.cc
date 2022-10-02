@@ -71,14 +71,16 @@ llvm::Value *LLVMExpressionVisitor::DispatchArray(const ArrayExpression *expr) {
 }
 
 llvm::Value *LLVMExpressionVisitor::DispatchCast(const CastExpression *expr) {
-  if (expr->expression()->expr_type()->type_class() == TypeClass::Integral &&
-      expr->cast_type()->type_class() == TypeClass::Integral) {
+  const Type *from_type = expr->expression()->expr_type();
+  TypeClass from_tc = from_type->type_class();
+  const Type *to_type = expr->cast_type();
+  TypeClass to_tc = to_type->type_class();
+
+  if (from_tc == TypeClass::Integral && to_tc == TypeClass::Integral) {
     return context_->llvm_builder()->CreateSExtOrTrunc(
         Visit(expr->expression()),
         LLVMTypeVisitor::Translate(context_, expr->cast_type()));
-  } else if (expr->expression()->expr_type()->type_class() ==
-                 TypeClass::Integral &&
-             expr->cast_type()->type_class() == TypeClass::Bool) {
+  } else if (from_tc == TypeClass::Integral && to_tc == TypeClass::Bool) {
     // x != 0
     llvm::Value *zero = llvm::ConstantInt::get(
         **context_,
@@ -86,14 +88,11 @@ llvm::Value *LLVMExpressionVisitor::DispatchCast(const CastExpression *expr) {
                     0));
     return context_->llvm_builder()->CreateICmpNE(Visit(expr->expression()),
                                                   zero);
-  } else if (expr->expression()->expr_type()->type_class() == TypeClass::Char &&
-             expr->cast_type()->type_class() == TypeClass::Integral) {
+  } else if (from_tc == TypeClass::Char && to_tc == TypeClass::Integral) {
     return context_->llvm_builder()->CreateSExtOrTrunc(
         Visit(expr->expression()),
         LLVMTypeVisitor::Translate(context_, expr->cast_type()));
-  } else if (expr->expression()->expr_type()->type_class() ==
-                 TypeClass::Pointer &&
-             expr->cast_type()->type_class() == TypeClass::Pointer) {
+  } else if (from_tc == TypeClass::Pointer && to_tc == TypeClass::Pointer) {
     return context_->llvm_builder()->CreateBitCast(
         Visit(expr->expression()),
         LLVMTypeVisitor::Translate(context_, expr->cast_type()),

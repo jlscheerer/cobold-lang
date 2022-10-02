@@ -13,6 +13,8 @@ public:
     switch (type_class) {
     case TypeClass::Nil:
       return DispatchNil(type->As<NilType>());
+    case TypeClass::Dash:
+      return DispatchDash(type->As<DashType>());
     case TypeClass::Bool:
       return DispatchBool(type->As<BoolType>());
     case TypeClass::Char:
@@ -36,6 +38,7 @@ public:
 protected:
   virtual RetType DispatchEmpty() { assert(false); }
   virtual RetType DispatchNil(const NilType *type) = 0;
+  virtual RetType DispatchDash(const DashType *type) = 0;
   virtual RetType DispatchBool(const BoolType *type) = 0;
   virtual RetType DispatchChar(const CharType *type) = 0;
   virtual RetType DispatchIntegral(const IntegralType *type) = 0;

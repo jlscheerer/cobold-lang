@@ -164,7 +164,7 @@ void ExpressionPrinter::DispatchCast(const CastExpression *expr) {
 
 void ExpressionPrinter::DispatchConstant(const ConstantExpression *expr) {
   const auto &data = expr->data();
-  if (const DashType *value = std::get_if<DashType>(&data)) {
+  if (const DashTypeTag *value = std::get_if<DashTypeTag>(&data)) {
     Append("--");
   } else if (const bool *value = std::get_if<bool>(&data)) {
     Append(*value ? "true" : "false");

@@ -94,6 +94,8 @@ bool TypeInferenceVisitor::CanCastExplicitTo(const Type *from, const Type *to) {
   switch (from_class) {
   case TypeClass::Nil:
     return to_class == TypeClass::Nil;
+  case TypeClass::Dash:
+    return true; // DashType can be cast to anything!
   case TypeClass::Bool:
     return to_class == TypeClass::Bool || to_class == TypeClass::Integral;
   case TypeClass::Char:
@@ -124,6 +126,8 @@ bool TypeInferenceVisitor::CanCastImplicitTo(const Type *from, const Type *to) {
     return true;
   TypeClass from_class = from->type_class(), to_class = to->type_class();
   switch (from_class) {
+  case TypeClass::Dash:
+    return true; // DashType can be cast to anything!
   case TypeClass::Nil:
   case TypeClass::Bool:
   case TypeClass::Char:
@@ -314,9 +318,10 @@ void TypeInferenceVisitor::DispatchDeclaration(DeclarationStatement *stmt) {
   ExpressionVisitor::Visit(stmt->mutable_expression());
   // if the inferred type is nullptr (we could not infer it --)
   if (stmt->decl_type() == nullptr) {
-    // TODO(jlscheerer) We should not be getting nil, etc.!
+    // we should not be getting an unassignable type (nil, --, etc.)!
+    TypeClass type_class = stmt->expression()->expr_type()->type_class();
+    assert(type_class != TypeClass::Nil && type_class != TypeClass::Dash);
     stmt->infer_type(stmt->expression()->expr_type());
-    std::cout << stmt->decl_type()->DebugString() << std::endl;
   } else if (stmt->decl_type() != stmt->expression()->expr_type()) {
     if (stmt->decl_type()->type_class() == TypeClass::Array &&
         stmt->expression()->expr_type()->type_class() == TypeClass::Array &&
@@ -342,14 +347,15 @@ void TypeInferenceVisitor::DispatchDeclaration(DeclarationStatement *stmt) {
       assert(CanCastExplicitTo(stmt->expression()->expr_type(),
                                stmt->decl_type()));
       // Add the explicit cast. For future iterations.
-      stmt->expression_ =
-          WrapExplicitCast(stmt->decl_type(), std::move(stmt->expression_));
+      if (stmt->expression()->expr_type()->type_class() != TypeClass::Dash) {
+        stmt->expression_ =
+            WrapExplicitCast(stmt->decl_type(), std::move(stmt->expression_));
+      }
     }
   }
   // stmt->decl_type() == stmt->expression()->expr_type() should be fine for
   // now (and does not require an explicit cast)!
-  assert(type_context_.StoreVar(stmt->identifier(),
-                                stmt->expression()->expr_type()));
+  assert(type_context_.StoreVar(stmt->identifier(), stmt->decl_type()));
 }
 
 void TypeInferenceVisitor::DispatchBreak(BreakStatement *stmt) {
@@ -585,8 +591,8 @@ void TypeInferenceVisitor::DispatchCast(CastExpression *expr) {
 }
 
 void TypeInferenceVisitor::DispatchConstant(ConstantExpression *expr) {
-  if (std::holds_alternative<DashType>(expr->data())) {
-    expr->set_expr_type(nullptr);
+  if (std::holds_alternative<DashTypeTag>(expr->data())) {
+    expr->set_expr_type(DashType::Get());
   } else if (std::holds_alternative<bool>(expr->data())) {
     expr->set_expr_type(BoolType::Get());
   } else if (std::holds_alternative<char>(expr->data())) {

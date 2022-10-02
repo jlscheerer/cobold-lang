@@ -1,6 +1,7 @@
 #ifndef COBOLD_CORE_TYPE
 #define COBOLD_CORE_TYPE
 
+#include <memory>
 #include <string>
 #include <type_traits>
 
@@ -10,6 +11,7 @@
 namespace Cobold {
 enum class TypeClass {
   Nil,
+  Dash,
   Bool,
   Char,
   Integral,
@@ -51,6 +53,18 @@ private:
   NilType() {}
 
   static inline std::unique_ptr<NilType> type_;
+};
+
+class DashType : public Type {
+public:
+  static const DashType *Get();
+  const TypeClass type_class() const override { return TypeClass::Dash; }
+  const std::string DebugString() const override { return "--"; }
+
+private:
+  DashType() {}
+
+  static inline std::unique_ptr<DashType> type_;
 };
 
 class IntegralType : public Type {

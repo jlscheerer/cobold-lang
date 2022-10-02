@@ -20,6 +20,7 @@ private:
 
   llvm::Type *DispatchEmpty() override;
   llvm::Type *DispatchNil(const NilType *type) override;
+  llvm::Type *DispatchDash(const DashType *type) override;
   llvm::Type *DispatchBool(const BoolType *type) override;
   llvm::Type *DispatchChar(const CharType *type) override;
   llvm::Type *DispatchIntegral(const IntegralType *type) override;

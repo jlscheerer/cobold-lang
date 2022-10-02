@@ -300,12 +300,12 @@ private:
   std::unique_ptr<Expression> expr_;
 };
 
-struct DashType {};
+struct DashTypeTag {};
 
 class ConstantExpression : public Expression {
 public:
   using data_type =
-      std::variant<DashType, bool, int64_t, double, std::string, char>;
+      std::variant<DashTypeTag, bool, int64_t, double, std::string, char>;
 
   ConstantExpression(SourceLocation location, data_type data)
       : Expression(location), data_(data) {}
@@ -316,7 +316,7 @@ public:
   }
 
   static std::unique_ptr<ConstantExpression> DashInit(SourceLocation location) {
-    return std::make_unique<ConstantExpression>(location, DashType{});
+    return std::make_unique<ConstantExpression>(location, DashTypeTag{});
   }
 
   static absl::StatusOr<std::unique_ptr<ConstantExpression>>

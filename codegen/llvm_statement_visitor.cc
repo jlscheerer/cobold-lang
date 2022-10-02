@@ -132,7 +132,6 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
   // Compute the end condition.
   context_->llvm_builder()->SetInsertPoint(loop_condition);
   llvm::Value *end = LLVMExpressionVisitor::Translate(context_, range->rhs());
-  std::cout << range->rhs()->expr_type()->DebugString() << std::endl;
   // *alloca >= end ?
   llvm::Value *end_cond = context_->llvm_builder()->CreateICmpUGE(
       end, context_->llvm_builder()->CreateLoad(
@@ -216,7 +215,8 @@ void LLVMStatementVisitor::DispatchDeclaration(
   assert(context_->named_vars.find(stmt->identifier()) ==
          context_->named_vars.end());
 
-  if (stmt->expression() != nullptr) {
+  // In general we don't need to do initialization for --.
+  if (stmt->expression()->expr_type()->type_class() != TypeClass::Dash) {
     context_->llvm_builder()->CreateStore(
         LLVMExpressionVisitor::Translate(context_, stmt->expression()), alloca);
   }
@@ -245,7 +245,6 @@ void LLVMStatementVisitor::DispatchBreak(const BreakStatement *stmt) {
 }
 
 void LLVMStatementVisitor::DispatchContinue(const ContinueStatement *stmt) {
-  std::cout << "hiiii" << std::endl;
   assert(context_->loop_instruction_stack.size() > 0);
   llvm::Function *function =
       context_->llvm_builder()->GetInsertBlock()->getParent();

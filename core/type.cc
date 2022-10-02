@@ -32,6 +32,15 @@ const NilType *NilType::Get() {
 }
 // `NilType` ============================================================
 
+// `DashType` ===========================================================
+const DashType *DashType::Get() {
+  if (type_ == nullptr) {
+    type_ = absl::WrapUnique(new DashType());
+  }
+  return type_.get();
+}
+// `DashType` ============================================================
+
 // `IntegralType` =======================================================
 const IntegralType *IntegralType::OfSize(int size) {
   if (!type_cache_.contains(size)) {
