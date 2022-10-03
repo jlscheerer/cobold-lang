@@ -3,20 +3,20 @@
 
 #include "visitor/type_visitor.h"
 
-#include "cobold_build_context.h"
+#include "codegen/build_context.h"
 
 #include "llvm/IR/Type.h"
 
 namespace Cobold {
 class LLVMTypeVisitor : private TypeVisitor<llvm::Type *> {
 public:
-  static llvm::Type *Translate(CoboldBuildContext *context, const Type *type) {
+  static llvm::Type *Translate(BuildContext *context, const Type *type) {
     LLVMTypeVisitor visitor(context);
     return visitor.Visit(type);
   }
 
 private:
-  LLVMTypeVisitor(CoboldBuildContext *context) : context_(context) {}
+  LLVMTypeVisitor(BuildContext *context) : context_(context) {}
 
   llvm::Type *DispatchEmpty() override;
   llvm::Type *DispatchNil(const NilType *type) override;
@@ -30,7 +30,7 @@ private:
   llvm::Type *DispatchRange(const RangeType *type) override;
   llvm::Type *DispatchPointer(const PointerType *type) override;
 
-  CoboldBuildContext *context_;
+  BuildContext *context_;
 };
 } // namespace Cobold
 

@@ -1,28 +1,29 @@
-#include "codegen/cobold_build_context.h"
+#include "codegen/build_context.h"
 
 namespace Cobold {
 // `CoboldBuildContext` =================================================
-llvm::Constant *CoboldBuildContext::AddStringConstant(std::string &value) {
-  llvm::Constant *ret = module->getOrInsertGlobal(
+// `BuildContext` =======================================================
+llvm::Constant *BuildContext::AddStringConstant(std::string &value) {
+  llvm::Constant *ret = module_->getOrInsertGlobal(
       /*name=*/"",
-      llvm::ArrayType::get(llvm::Type::getIntNTy(*context, 8), value.size()),
+      llvm::ArrayType::get(llvm::Type::getIntNTy(*context_, 8), value.size()),
       [this, value]() {
         std::vector<llvm::Constant *> chars;
         chars.reserve(value.size());
         for (const char c : value) {
           chars.push_back(
-              llvm::ConstantInt::get(*context, llvm::APInt(8, c, true)));
+              llvm::ConstantInt::get(*context_, llvm::APInt(8, c, true)));
         }
         auto init = llvm::ConstantArray::get(
-            llvm::ArrayType::get(llvm::Type::getIntNTy(*context, 8),
+            llvm::ArrayType::get(llvm::Type::getIntNTy(*context_, 8),
                                  chars.size()),
             chars);
         llvm::GlobalVariable *v = new llvm::GlobalVariable(
-            *module, init->getType(), true,
+            *module_, init->getType(), true,
             llvm::GlobalVariable::InternalLinkage, init, value);
         return v;
       });
   return ret;
 }
-// `CoboldBuildContext` =================================================
+// `BuildContext` =======================================================
 } // namespace Cobold

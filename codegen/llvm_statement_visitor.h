@@ -3,12 +3,12 @@
 
 #include "visitor/statement_visitor.h"
 
-#include "cobold_build_context.h"
+#include "codegen/build_context.h"
 
 namespace Cobold {
 class LLVMStatementVisitor : private StatementVisitor<true> {
 public:
-  static void Translate(CoboldBuildContext *context, const Statement *stmt) {
+  static void Translate(BuildContext *context, const Statement *stmt) {
     LLVMStatementVisitor visitor(context);
     return visitor.Visit(stmt);
   }
@@ -18,7 +18,7 @@ public:
                                                   llvm::Type *type);
 
 private:
-  LLVMStatementVisitor(CoboldBuildContext *context) : context_(context) {}
+  LLVMStatementVisitor(BuildContext *context) : context_(context) {}
 
   void DispatchReturn(const ReturnStatement *stmt) override;
   void DispatchAssignment(const AssignmentStatement *stmt) override;
@@ -31,7 +31,7 @@ private:
   void DispatchBreak(const BreakStatement *stmt) override;
   void DispatchContinue(const ContinueStatement *stmt) override;
 
-  CoboldBuildContext *context_;
+  BuildContext *context_;
 };
 } // namespace Cobold
 

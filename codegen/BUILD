@@ -1,9 +1,9 @@
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "cobold_build_context",
-    hdrs = ["cobold_build_context.h"],
-    srcs = ["cobold_build_context.cc"],
+    name = "build_context",
+    hdrs = ["build_context.h"],
+    srcs = ["build_context.cc"],
     deps = [
         "@llvm-project//llvm:Core",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -15,7 +15,7 @@ cc_library(
     hdrs = ["llvm_type_visitor.h"],
     srcs = ["llvm_type_visitor.cc"],
     deps = [
-        ":cobold_build_context",
+        ":build_context",
         "//visitor:type_visitor",
         "@llvm-project//llvm:Core",
     ],
@@ -26,7 +26,7 @@ cc_library(
     hdrs = ["llvm_expression_visitor.h"],
     srcs = ["llvm_expression_visitor.cc"],
     deps = [
-        ":cobold_build_context",
+        ":build_context",
         ":llvm_type_visitor",
         "//visitor:expression_visitor",
         "@llvm-project//llvm:Core",
@@ -38,7 +38,7 @@ cc_library(
     hdrs = ["llvm_statement_visitor.h"],
     srcs = ["llvm_statement_visitor.cc"],
     deps = [
-        ":cobold_build_context",
+        ":build_context",
         ":llvm_expression_visitor",
         ":llvm_type_visitor",
         "//visitor:statement_visitor",
@@ -51,7 +51,7 @@ cc_library(
     hdrs = ["llvm_codegen.h"],
     srcs = ["llvm_codegen.cc"],
     deps = [
-        ":cobold_build_context",
+        ":build_context",
         ":llvm_type_visitor",
         ":llvm_statement_visitor",
         "//parser:source_file",

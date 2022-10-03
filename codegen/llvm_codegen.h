@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "codegen/cobold_build_context.h"
+#include "codegen/build_context.h"
 #include "parser/source_file.h"
 
 #include "absl/status/status.h"
@@ -24,7 +24,7 @@ private:
   absl::Status Emit(const std::string &filename);
   absl::Status Build(const std::string &filename);
 
-  CoboldBuildContext context_;
+  BuildContext context_;
 };
 } // namespace Cobold
 

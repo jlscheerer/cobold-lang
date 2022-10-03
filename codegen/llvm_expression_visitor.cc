@@ -2,12 +2,12 @@
 
 #include <variant>
 
-#include "codegen/cobold_build_context.h"
+#include "codegen/build_context.h"
 #include "codegen/llvm_type_visitor.h"
 
 namespace Cobold {
 // `LLVMExpressionVisitor` ==============================================
-llvm::Value *LLVMExpressionVisitor::Translate(CoboldBuildContext *context,
+llvm::Value *LLVMExpressionVisitor::Translate(BuildContext *context,
                                               const Expression *expr) {
   LLVMExpressionVisitor visitor(context);
   return visitor.Visit(expr);
@@ -52,8 +52,8 @@ llvm::Value *LLVMExpressionVisitor::DispatchUnary(const UnaryExpression *expr) {
 }
 
 llvm::Value *LLVMExpressionVisitor::DispatchCall(const CallExpression *expr) {
-  assert(context_->functions.contains(expr->identifier()));
-  llvm::Function *function = context_->functions[expr->identifier()];
+  assert(context_->HasFunction(expr->identifier()));
+  llvm::Function *function = context_->FunctionForName(expr->identifier());
   std::vector<llvm::Value *> args;
   args.reserve(expr->args().size());
   for (const auto &arg : expr->args()) {
@@ -132,9 +132,8 @@ LLVMExpressionVisitor::DispatchConstant(const ConstantExpression *expr) {
 
 llvm::Value *
 LLVMExpressionVisitor::DispatchIdentifier(const IdentifierExpression *expr) {
-  assert(context_->named_vars.find(expr->identifier()) !=
-         context_->named_vars.end());
-  llvm::AllocaInst *var = context_->named_vars[expr->identifier()];
+  assert(context_->HasNamedVar(expr->identifier()));
+  llvm::AllocaInst *var = context_->AllocaForNamedVar(expr->identifier());
   return context_->llvm_builder()->CreateLoad(
       LLVMTypeVisitor::Translate(context_, expr->expr_type()), var,
       expr->identifier().c_str());
@@ -167,8 +166,8 @@ LLVMExpressionVisitor::DispatchCallOp(const CallOpExpression *expr) {
   assert(expr->expression()->type() == ExpressionType::Identifier);
   const std::string &identifier =
       expr->expression()->As<IdentifierExpression>()->identifier();
-  assert(context_->functions.contains(identifier));
-  llvm::Function *function = context_->functions[identifier];
+  assert(context_->HasFunction(identifier));
+  llvm::Function *function = context_->FunctionForName(identifier);
   std::vector<llvm::Value *> args;
   args.reserve(expr->args().size());
   for (const auto &arg : expr->args()) {

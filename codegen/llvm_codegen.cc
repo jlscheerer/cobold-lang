@@ -6,6 +6,7 @@
 #include <system_error>
 #include <vector>
 
+#include "build_context.h"
 #include "codegen/llvm_statement_visitor.h"
 #include "codegen/llvm_type_visitor.h"
 #include "parser/source_file.h"
@@ -68,10 +69,9 @@ LLVMCodeGen::LLVMCodeGen() {
   function_pass_manager->add(llvm::createCFGSimplificationPass());
   function_pass_manager->doInitialization();
 
-  context_ = {.context = std::move(llvm_context),
-              .module = std::move(llvm_module),
-              .builder = std::move(llvm_builder),
-              .function_pass_manager = std::move(function_pass_manager)};
+  context_ =
+      BuildContext(std::move(llvm_context), std::move(llvm_module),
+                   std::move(llvm_builder), std::move(function_pass_manager));
 
   CreateBuiltinTypes();
 }
@@ -105,7 +105,7 @@ void LLVMCodeGen::GenerateLLVM(const SourceFile &file) {
 
   // Call the user provided "fn Main()"
   llvm::Value *ret_value =
-      context_.llvm_builder()->CreateCall(context_.functions["Main"], {});
+      context_.llvm_builder()->CreateCall(context_.FunctionForName("Main"), {});
 
   context_.llvm_builder()->CreateRet(ret_value);
   llvm::verifyFunction(*function);
@@ -137,14 +137,14 @@ void LLVMCodeGen::AddFunctionDeclarations(const SourceFile &file) {
           llvm::Function::Create(function_type, llvm::Function::PrivateLinkage,
                                  fn->name(), context_.llvm_module());
     }
-    context_.functions[fn->name()] = function;
+    context_.PutFunction(fn->name(), function);
   }
 }
 
 void LLVMCodeGen::AddFunctionDefinitions(const SourceFile &file) {
   for (const std::unique_ptr<Function> &fn : file.functions()) {
     if (!fn->external()) {
-      llvm::Function *function = context_.functions[fn->name()];
+      llvm::Function *function = context_.FunctionForName(fn->name());
       llvm::BasicBlock *basic_block =
           llvm::BasicBlock::Create(*context_, "entry", function);
       context_.llvm_builder()->SetInsertPoint(basic_block);
@@ -157,14 +157,14 @@ void LLVMCodeGen::AddFunctionDefinitions(const SourceFile &file) {
             LLVMTypeVisitor::Translate(&context_, decl_arg.type));
         context_.llvm_builder()->CreateStore(&argument, alloca);
         // TODO(jlscheerer) Improve this...
-        context_.named_vars[decl_arg.name] = alloca;
+        context_.PutNamedVar(decl_arg.name, alloca);
       }
 
       LLVMStatementVisitor::Translate(&context_,
                                       &fn->As<DefinedFunction>()->body());
       llvm::verifyFunction(*function);
 
-      context_.function_pass_manager->run(*function);
+      context_.function_pass_manager()->run(*function);
     }
   }
 }

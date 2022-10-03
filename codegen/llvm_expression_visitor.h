@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "codegen/cobold_build_context.h"
+#include "codegen/build_context.h"
 #include "core/expression.h"
 #include "visitor/expression_visitor.h"
 
@@ -14,11 +14,10 @@
 namespace Cobold {
 class LLVMExpressionVisitor : private ExpressionVisitor<true, llvm::Value *> {
 public:
-  static llvm::Value *Translate(CoboldBuildContext *context,
-                                const Expression *expr);
+  static llvm::Value *Translate(BuildContext *context, const Expression *expr);
 
 private:
-  LLVMExpressionVisitor(CoboldBuildContext *context) : context_(context) {}
+  LLVMExpressionVisitor(BuildContext *context) : context_(context) {}
 
   llvm::Value *DispatchEmpty() override;
   llvm::Value *DispatchTernary(const TernaryExpression *expr) override;
@@ -43,7 +42,7 @@ private:
   llvm::Value *PointerUnaryExpression(const UnaryExpression *expr,
                                       llvm::Value *value);
 
-  CoboldBuildContext *context_;
+  BuildContext *context_;
 };
 } // namespace Cobold
 

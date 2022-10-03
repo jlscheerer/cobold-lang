@@ -1,6 +1,6 @@
 #include "codegen/llvm_statement_visitor.h"
 
-#include "cobold_build_context.h"
+#include "codegen/build_context.h"
 #include "codegen/llvm_expression_visitor.h"
 #include "codegen/llvm_type_visitor.h"
 
@@ -17,9 +17,9 @@ void LLVMStatementVisitor::DispatchAssignment(const AssignmentStatement *stmt) {
   if (stmt->lhs()->type() == ExpressionType::Identifier) {
     std::string identifier =
         stmt->lhs()->As<IdentifierExpression>()->identifier();
-    assert(context_->named_vars.contains(identifier));
+    assert(context_->HasNamedVar(identifier));
 
-    llvm::AllocaInst *alloca = context_->named_vars[identifier];
+    llvm::AllocaInst *alloca = context_->AllocaForNamedVar(identifier);
     llvm::Value *value =
         LLVMExpressionVisitor::Translate(context_, stmt->rhs());
     context_->llvm_builder()->CreateStore(value, alloca);
@@ -94,7 +94,7 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
       stmt->identifier(),
       LLVMTypeVisitor::Translate(context_, stmt->decl_type()));
 
-  context_->named_vars[stmt->identifier()] = alloca;
+  context_->PutNamedVar(stmt->identifier(), alloca);
 
   // TODO(jlscheerer) Generalize this.
   assert(stmt->expression()->expr_type()->type_class() == TypeClass::Range);
@@ -117,7 +117,7 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
   llvm::BasicBlock *after_loop =
       llvm::BasicBlock::Create(**context_, "after_loop", function);
 
-  context_->loop_instruction_stack.push(LoopInstructionBlock{
+  context_->loop_instruction_stack().push(LoopInstructionBlock{
       .break_bb = after_loop, .continue_bb = loop_increment});
 
   // TODO(jlscheerer) Generalize this for different "iterators"
@@ -165,7 +165,7 @@ void LLVMStatementVisitor::DispatchFor(const ForStatement *stmt) {
   // Insert the conditional branch into the end of LoopEndBB.
   context_->llvm_builder()->CreateBr(loop_condition);
 
-  context_->loop_instruction_stack.pop();
+  context_->loop_instruction_stack().pop();
 
   // Any new code will be inserted in AfterBB.
   context_->llvm_builder()->SetInsertPoint(after_loop);
@@ -185,7 +185,7 @@ void LLVMStatementVisitor::DispatchWhile(const WhileStatement *stmt) {
   llvm::BasicBlock *after_while =
       llvm::BasicBlock::Create(**context_, "after-while", function);
 
-  context_->loop_instruction_stack.push(LoopInstructionBlock{
+  context_->loop_instruction_stack().push(LoopInstructionBlock{
       .break_bb = after_while, .continue_bb = while_condition});
 
   context_->llvm_builder()->CreateBr(while_condition);
@@ -199,7 +199,7 @@ void LLVMStatementVisitor::DispatchWhile(const WhileStatement *stmt) {
   Visit(stmt->body().get());
   context_->llvm_builder()->CreateBr(while_condition);
 
-  context_->loop_instruction_stack.pop();
+  context_->loop_instruction_stack().pop();
 
   context_->llvm_builder()->SetInsertPoint(after_while);
 }
@@ -212,8 +212,7 @@ void LLVMStatementVisitor::DispatchDeclaration(
       LLVMTypeVisitor::Translate(context_, stmt->decl_type()));
 
   // TODO(jlscheerer) Clean this up.
-  assert(context_->named_vars.find(stmt->identifier()) ==
-         context_->named_vars.end());
+  assert(!context_->HasNamedVar(stmt->identifier()));
 
   if (stmt->expression()->expr_type()->type_class() == TypeClass::Dash) {
     // we only need to do initialization for "complex" types here.
@@ -229,11 +228,11 @@ void LLVMStatementVisitor::DispatchDeclaration(
         LLVMExpressionVisitor::Translate(context_, stmt->expression()), alloca);
   }
 
-  context_->named_vars[stmt->identifier()] = alloca;
+  context_->PutNamedVar(stmt->identifier(), alloca);
 }
 
 void LLVMStatementVisitor::DispatchBreak(const BreakStatement *stmt) {
-  assert(context_->loop_instruction_stack.size() > 0);
+  assert(context_->loop_instruction_stack().size() > 0);
   llvm::Function *function =
       context_->llvm_builder()->GetInsertBlock()->getParent();
 
@@ -247,13 +246,13 @@ void LLVMStatementVisitor::DispatchBreak(const BreakStatement *stmt) {
   context_->llvm_builder()->CreateBr(break_block);
   context_->llvm_builder()->SetInsertPoint(break_block);
   context_->llvm_builder()->CreateBr(
-      context_->loop_instruction_stack.top().break_bb);
+      context_->loop_instruction_stack().top().break_bb);
 
   context_->llvm_builder()->SetInsertPoint(after_break);
 }
 
 void LLVMStatementVisitor::DispatchContinue(const ContinueStatement *stmt) {
-  assert(context_->loop_instruction_stack.size() > 0);
+  assert(context_->loop_instruction_stack().size() > 0);
   llvm::Function *function =
       context_->llvm_builder()->GetInsertBlock()->getParent();
 
@@ -267,7 +266,7 @@ void LLVMStatementVisitor::DispatchContinue(const ContinueStatement *stmt) {
   context_->llvm_builder()->CreateBr(continue_block);
   context_->llvm_builder()->SetInsertPoint(continue_block);
   context_->llvm_builder()->CreateBr(
-      context_->loop_instruction_stack.top().continue_bb);
+      context_->loop_instruction_stack().top().continue_bb);
 
   context_->llvm_builder()->SetInsertPoint(after_continue);
 }
