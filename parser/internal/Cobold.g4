@@ -14,6 +14,7 @@ blockItemList: blockItem+;
 blockItem: statement | declaration;
 statement:
 	returnStatement
+	| deinitStatement
 	| assignmentStatement
 	| compoundStatement
 	| expressionStatement
@@ -22,6 +23,7 @@ statement:
 	| loopFlowInstruction;
 
 returnStatement: RETURN expression ';';
+deinitStatement: DEINIT expression ';';
 expressionStatement: expression ';';
 
 ifStatement:
@@ -142,6 +144,7 @@ arrayExpression:
 
 FUNCTION: 'fn';
 RETURN: 'return';
+DEINIT: 'deinit';
 IF: 'if';
 ELSE: 'else';
 

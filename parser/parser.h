@@ -1,6 +1,7 @@
 #ifndef COBOLD_PARSER_PARSER
 #define COBOLD_PARSER_PARSER
 
+#include <memory>
 #include <string>
 
 #include "absl/status/statusor.h"
@@ -76,6 +77,8 @@ private:
   ParseStatement(CoboldParser::StatementContext *ctx);
   absl::StatusOr<std::unique_ptr<ReturnStatement>>
   ParseReturnStatement(CoboldParser::ReturnStatementContext *ctx);
+  absl::StatusOr<std::unique_ptr<DeinitStatement>>
+  ParseDeinitStatement(CoboldParser::DeinitStatementContext *ctx);
   absl::StatusOr<std::unique_ptr<AssignmentStatement>>
   ParseAssignmentStatement(CoboldParser::AssignmentStatementContext *ctx);
   absl::StatusOr<std::unique_ptr<CompoundStatement>>

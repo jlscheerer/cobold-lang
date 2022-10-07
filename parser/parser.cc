@@ -277,6 +277,8 @@ absl::StatusOr<std::unique_ptr<Statement>>
 Parser::ParseStatement(CoboldParser::StatementContext *ctx) {
   if (ctx->returnStatement())
     return ParseReturnStatement(ctx->returnStatement());
+  if (ctx->deinitStatement())
+    return ParseDeinitStatement(ctx->deinitStatement());
   if (ctx->assignmentStatement())
     return ParseAssignmentStatement(ctx->assignmentStatement());
   if (ctx->compoundStatement())
@@ -308,6 +310,15 @@ Parser::ParseReturnStatement(CoboldParser::ReturnStatementContext *ctx) {
   if (!status_or_expr.ok())
     return status_or_expr.status();
   return std::make_unique<ReturnStatement>(std::move(*status_or_expr));
+}
+
+absl::StatusOr<std::unique_ptr<DeinitStatement>>
+Parser::ParseDeinitStatement(CoboldParser::DeinitStatementContext *ctx) {
+  absl::StatusOr<std::unique_ptr<Expression>> status_or_expr =
+      ParseExpression(ctx->expression());
+  if (!status_or_expr.ok())
+    return status_or_expr.status();
+  return std::make_unique<DeinitStatement>(std::move(*status_or_expr));
 }
 
 absl::StatusOr<std::unique_ptr<AssignmentStatement>>

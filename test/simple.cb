@@ -4,6 +4,6 @@ fn PrintStr(obj: string) #extern("__print_str");
 
 fn Main() -> i32 {
     var a: string = --;
-    PrintStr(a);
+    deinit a;
     return (i32)0;
 }

@@ -12,8 +12,11 @@ std::string StatementPrinter::Print(const Statement *stmt) {
 }
 
 void StatementPrinter::DispatchReturn(const ReturnStatement *stmt) {
-  // TODO(jlscheerer) Use an ExpressionPrinter here
   AppendIndented("return ", ExpressionPrinter::Print(stmt->expression()), ";");
+}
+
+void StatementPrinter::DispatchDeinit(const DeinitStatement *stmt) {
+  AppendIndented("deinit ", ExpressionPrinter::Print(stmt->expression()), ";");
 }
 
 void StatementPrinter::DispatchAssignment(const AssignmentStatement *stmt) {
@@ -33,7 +36,6 @@ void StatementPrinter::DispatchCompound(const CompoundStatement *stmt) {
 }
 
 void StatementPrinter::DispatchExpression(const ExpressionStatement *stmt) {
-  // TODO(jlscheerer) Use an ExpressionPrinter here
   AppendIndented(ExpressionPrinter::Print(stmt->expression()), ";");
 }
 

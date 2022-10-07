@@ -15,6 +15,8 @@ public:
     switch (type) {
     case StatementType::Return:
       return DispatchReturn(stmt->template As<ReturnStatement>());
+    case StatementType::Deinit:
+      return DispatchDeinit(stmt->template As<DeinitStatement>());
     case StatementType::Assignment:
       return DispatchAssignment(stmt->template As<AssignmentStatement>());
     case StatementType::Compound:
@@ -39,6 +41,8 @@ public:
 protected:
   virtual void
   DispatchReturn(enable_const_if_t<ConstVisit, ReturnStatement> *stmt) {}
+  virtual void
+  DispatchDeinit(enable_const_if_t<ConstVisit, DeinitStatement> *stmt) {}
   virtual void
   DispatchAssignment(enable_const_if_t<ConstVisit, AssignmentStatement> *stmt) {
   }

@@ -12,6 +12,7 @@
 namespace Cobold {
 enum class StatementType {
   Return,
+  Deinit,
   Assignment,
   Compound,
   Expression,
@@ -129,6 +130,13 @@ public:
   using ExpressionStatement::ExpressionStatement;
 
   StatementType type() const { return StatementType::Return; }
+};
+
+class DeinitStatement : public ExpressionStatement {
+public:
+  using ExpressionStatement::ExpressionStatement;
+
+  StatementType type() const { return StatementType::Deinit; }
 };
 
 struct IfBranch {

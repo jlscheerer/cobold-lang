@@ -13,6 +13,7 @@ public:
 
 private:
   void DispatchReturn(const ReturnStatement *stmt) override;
+  void DispatchDeinit(const DeinitStatement *stmt) override;
   void DispatchAssignment(const AssignmentStatement *stmt) override;
   void DispatchCompound(const CompoundStatement *stmt) override;
   void DispatchExpression(const ExpressionStatement *stmt) override;
