@@ -7,6 +7,12 @@ cc_library(
 )
 
 cc_library(
+    name = "scoped_map",
+    hdrs = ["scoped_map.h"],
+    deps = ["@com_google_absl//absl/container:flat_hash_map"],
+)
+
+cc_library(
     name = "expression_printer",
     srcs = ["expression_printer.cc"],
     hdrs = ["expression_printer.h"],
