@@ -12,6 +12,10 @@ void LLVMStatementVisitor::DispatchReturn(const ReturnStatement *stmt) {
   context_->llvm_builder()->CreateRet(ret_value);
 }
 
+void LLVMStatementVisitor::DispatchDeinit(const DeinitStatement *stmt) {
+  assert(false);
+}
+
 void LLVMStatementVisitor::DispatchAssignment(const AssignmentStatement *stmt) {
   assert(stmt->assgn_type() == AssignmentType::EQ);
   if (stmt->lhs()->type() == ExpressionType::Identifier) {

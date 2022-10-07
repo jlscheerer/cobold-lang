@@ -204,6 +204,12 @@ void TypeInferenceVisitor::DispatchReturn(ReturnStatement *stmt) {
   // the surrounding function!
 }
 
+void TypeInferenceVisitor::DispatchDeinit(DeinitStatement *stmt) {
+  ExpressionVisitor::Visit(stmt->mutable_expression());
+  // TODO(jlscheerer) Assert that we are not calling deinit on a temp. or
+  // primitive type.
+}
+
 void TypeInferenceVisitor::DispatchAssignment(AssignmentStatement *stmt) {
   // TODO(jlscheerer) Check that the types are compatible by the operation!
   BinaryExpressionType bin_op;

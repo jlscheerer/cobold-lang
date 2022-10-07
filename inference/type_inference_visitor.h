@@ -28,6 +28,7 @@ private:
 
   // Statements
   void DispatchReturn(ReturnStatement *stmt) override;
+  void DispatchDeinit(DeinitStatement *stmt) override;
   void DispatchAssignment(AssignmentStatement *stmt) override;
   void DispatchCompound(CompoundStatement *stmt) override;
   void DispatchExpression(ExpressionStatement *stmt) override;
